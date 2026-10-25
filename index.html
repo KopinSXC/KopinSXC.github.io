@@ -115,6 +115,19 @@
   .found dd { margin: 0; word-break: break-all; }
   .found .miss { color: var(--muted); font-style: italic; }
   details summary { cursor: pointer; }
+  .doc-sec { gap: 10px; }
+  .doc-sec.off > :not(.panel-head) { display: none; }
+  .doc-sec.off h3 { color: var(--muted); }
+  .secno { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--field-soft); color: var(--field); font: 600 13px var(--font-mono); margin-right: 8px; vertical-align: 2px; }
+  .inc { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .how { font-size: 14px; color: var(--muted); background: var(--bg); border-radius: 8px; padding: 8px 12px; }
+  .how summary { color: var(--field); font-weight: 600; }
+  .how p { margin-top: 6px; color: var(--ink); }
+  .how ul { margin: 6px 0 0; padding-left: 20px; }
+  .auto { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; font-size: 14px; color: var(--muted); }
+  .auto b { color: var(--ink); font-weight: 600; }
+  .checks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 16px; font-size: 14px; color: var(--muted); }
+  .checks li.pass { color: var(--good); }
 
   /* 活动页头 */
   .board { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: grid; gap: 10px; }
@@ -486,6 +499,8 @@ function planFromRequirements(r) {
   }
   if (f.groupCount) p.groupCount = Math.max(0, Math.min(24, f.groupCount));
   if (p.groupCount || f.roster) applyGroups(p, false);
+  p.content = sampleText(p, 'content');
+  p.org = sampleText(p, 'org');
   p.requirements = r.text;
   p.schedule = genSchedule(p);
   recalcDue(p);
@@ -524,6 +539,8 @@ function makePlan(type) {
   };
   if (p.groupCount) p.groups = Array.from({ length: p.groupCount }, (_, i) => ({ id: newId(), name: groupName(p.groupTheme, i), leader: '', members: [] }));
   p.schedule = genSchedule(p);
+  p.docOff = {};
+  for (const k of ['org', 'content', 'prep', 'follow', 'effect']) p[k] = sampleText(p, k);
   return p;
 }
 
@@ -849,60 +866,173 @@ function exportCsv(kind) {
   offerFile(`${p.name}-${name}.csv`, text, text.replace(/^﻿/, '').replace(/,/g, '\t'));
 }
 
-/* 策划案：同一份结构，生成网页预览、纯文字和 Word */
+/* 策划案：按标准结构分成若干部分。文字部分由用户写，其余从各页自动生成。
+   同一份结构生成网页预览、纯文字和 Word。 */
+const DOC_SECTIONS = [
+  { key: 'background', title: '活动背景', kind: 'text',
+    guide: '说明为什么要办这个活动：现在是什么情况，同学们有什么需要，和学校、学院的哪项工作有关。',
+    tips: ['2～4 句话就够', '写清楚「为什么是现在办」', '可以提到学校的通知或工作安排'] },
+  { key: 'goals', title: '活动目的', kind: 'text',
+    guide: '写办完这个活动，想达到什么效果。',
+    tips: ['分 2～4 条写，每条一行', '越具体越好：「让新生认识本班同学」比「丰富校园生活」好', '不要只写口号'] },
+  { key: 'theme', title: '活动主题', kind: 'line',
+    guide: '用一句话概括活动，通常是一句口号。',
+    tips: ['8～12 个字最好记', '和活动内容有关，例如「团结协作，快乐运动」'] },
+  { key: 'basic', title: '时间、地点与参与对象', kind: 'auto', tab: 'overview',
+    guide: '写清楚哪天、几点到几点、在哪里、谁参加、大概多少人。',
+    tips: ['时间写到几点几分', '地点写到具体场地，例如「东区田径场」', '人数写预计的数字'] },
+  { key: 'org', title: '组织机构', kind: 'text',
+    guide: '写主办、承办单位，以及工作小组怎么分，每组由谁负责、管什么。',
+    tips: ['先写单位，再写工作小组', '常见小组：总负责、宣传组、后勤组、裁判组或节目组', '每组写一个负责人'] },
+  { key: 'content', title: '活动内容与形式', kind: 'text',
+    guide: '介绍活动具体做什么：有哪些项目或节目，怎么进行，规则是什么。项目清单会自动附在后面。',
+    tips: ['先用一两句话概括形式', '再说明怎么分组、怎么比、怎么评奖', '规则写在「流程」页的项目里，会自动列成表'] },
+  { key: 'prep', title: '前期筹备', kind: 'text',
+    guide: '活动之前要做哪些准备，按时间顺序写。',
+    tips: ['按「活动前两周、一周、三天、一天」排', '场地申请、通知报名、采购物资、人员培训、场地布置都要有'] },
+  { key: 'flow', title: '活动当天流程', kind: 'auto', tab: 'flow',
+    guide: '活动当天每个环节几点开始、在哪里、谁负责。执行时最常翻的就是这一部分。',
+    tips: ['时间精确到分钟', '每个环节写负责人', '环节之间留出换场时间'] },
+  { key: 'groups', title: '分组安排', kind: 'auto', tab: 'groups',
+    guide: '有分组的活动，列出每组的组名、组长和成员。',
+    tips: ['没有分组的活动可以不写这一部分'] },
+  { key: 'scoring', title: '计分与评奖办法', kind: 'auto', tab: 'score',
+    guide: '说明怎么算成绩、怎么评奖，让参加的人提前知道规则。',
+    tips: ['比赛类活动一定要写', '写清楚名次怎么换算积分，或评委怎么打分'] },
+  { key: 'tasks', title: '人员分工', kind: 'auto', tab: 'tasks',
+    guide: '每件事落实到具体的人，写清楚截止日期。',
+    tips: ['一件事只写一个负责人', '截止日期要早于活动日期'] },
+  { key: 'publicity', title: '宣传方案', kind: 'text',
+    guide: '活动前怎么通知大家，活动中怎么记录，活动后怎么报道。',
+    tips: ['按「活动前、活动中、活动后」三段写', '写清楚用什么渠道：公众号、班级群、海报'] },
+  { key: 'budget', title: '经费预算', kind: 'auto', tab: 'budget',
+    guide: '列出每样要花钱的东西，写数量、单价和小计，最后算合计。老师审批时最看重这一部分。',
+    tips: ['每一项都要有单价和数量', '合计不能超过预算上限', '能借的就不买'] },
+  { key: 'safety', title: '安全预案', kind: 'text',
+    guide: '想一想活动中可能出什么问题，每个问题写好怎么应对。',
+    tips: ['至少写 2 条', '常见情况：有人受伤、下雨、设备故障、人员走散', '写清楚谁负责、怎么处理'] },
+  { key: 'follow', title: '后期总结', kind: 'text',
+    guide: '活动结束后要做的事。',
+    tips: ['清理场地、归还物资', '整理照片，发布新闻稿', '开总结会，整理经费和反馈'] },
+  { key: 'effect', title: '预期效果', kind: 'text',
+    guide: '预计活动会有什么成果，以及怎么判断活动办得好不好。',
+    tips: ['写可以检查的结果，例如「参与人数达到 150 人」', '写怎么收集反馈：问卷、现场打分'] },
+];
+
+/* 「填入参考写法」用的范文，会用上已经填好的活动信息 */
+function sampleText(p, key) {
+  const n = p.items.filter((i) => i.name.trim()).length;
+  const head = num(p.headcount) || '若干';
+  const crew = { sports: ['裁判组', '讲解规则、计时和记录名次'], gala: ['节目组', '节目审核、彩排和后台管理'], lecture: ['会务组', '嘉宾接待、签到和会场秩序'], outing: ['安全组', '清点人数、带队和应急处理'] }[p.type];
+  const S = {
+    background: TEXTS[p.type].background,
+    goals: TEXTS[p.type].goals,
+    publicity: TEXTS[p.type].publicity,
+    safety: TEXTS[p.type].safety,
+    org: `主办单位：${p.organizer || '（填写主办单位）'}\n承办单位：（填写承办单位）\n组委会下设以下工作小组：\n1. 总负责：（姓名），负责活动统筹和各组协调。\n2. 宣传组：（姓名），负责海报、推文和现场拍摄。\n3. 后勤组：（姓名），负责物资采购、场地布置和清理。\n4. ${crew[0]}：（姓名），负责${crew[1]}。`,
+    content: {
+      sports: `本次运动会共设 ${n} 个趣味项目，参加者以小组为单位参赛。各项目在不同场地同时进行，各组按轮转表依次参加。每个项目按名次积分，最后按总分评出团体一、二、三名。各项目规则见下表。`,
+      gala: `晚会由 ${n} 个节目组成，包括歌舞、语言类和器乐等形式，节目经过初审、复审后确定。晚会设评委现场打分，评出一、二、三等奖。节目安排见下表。`,
+      lecture: `本次活动以专题讲座为主要形式，邀请嘉宾围绕主题作报告，并安排互动问答环节，帮助同学们加深理解。`,
+      outing: `本次活动以户外拓展为主要形式，包括破冰游戏、团队挑战和定向越野等环节，参加人员分组完成任务。各环节安排见下表。`,
+    }[p.type],
+    prep: '1. 活动前两周：确定活动方案，提交场地借用申请。\n2. 活动前一周：发布活动通知，开始报名，采购物资和奖品。\n3. 活动前三天：确定人员分工，召开工作人员培训会。\n4. 活动前一天：布置场地，检查设备和物资，确认天气情况。',
+    follow: '1. 活动结束后清理场地，归还借用的物资和设备。\n2. 两天内整理照片和视频，发布活动新闻稿。\n3. 一周内召开总结会，整理经费使用情况和参加者反馈，形成活动总结。',
+    effect: {
+      sports: `1. 预计 ${head} 人参加，各组完成全部比赛项目。\n2. 同学之间增进了解，集体凝聚力明显提升。\n3. 活动后发放问卷，满意度达到 90% 以上。`,
+      gala: `1. 预计 ${head} 名观众到场，晚会按时顺利完成。\n2. 为同学们提供展示才艺的舞台，涌现一批优秀节目。\n3. 活动后发放问卷，满意度达到 90% 以上。`,
+      lecture: `1. 预计 ${head} 人参加，到场率达到 90% 以上。\n2. 同学们对主题有更深的理解，互动问答积极。\n3. 活动后收集反馈，满意度达到 90% 以上。`,
+      outing: `1. 预计 ${head} 人参加，全程安全、无人员受伤。\n2. 成员之间增进了解，团队协作能力得到锻炼。\n3. 活动后收集反馈，满意度达到 90% 以上。`,
+    }[p.type],
+    theme: { sports: '团结协作，快乐运动', gala: '青春飞扬，梦想启航', lecture: '学以致用，明确方向', outing: '携手同行，共赴山海' }[p.type],
+  };
+  return S[key] || '';
+}
+
+function docChecks(p) {
+  const lines = (s) => String(s || '').split('\n').filter((x) => x.trim()).length;
+  const bs = budgetSum(p);
+  return [
+    ['写了活动背景', String(p.background || '').trim().length >= 20],
+    ['活动目的至少分 2 条写', lines(p.goals) >= 2],
+    ['填了日期和地点', Boolean(p.date && String(p.location || '').trim())],
+    ['填了参与对象和人数', Boolean(String(p.audience || '').trim() && num(p.headcount))],
+    ['当天流程已经排好', p.schedule.length > 0],
+    ['每个任务都有负责人', p.tasks.length > 0 && p.tasks.every((t) => String(t.owner || '').trim())],
+    ['预算有明细，而且没超上限', p.budget.length > 0 && (!num(p.budgetLimit) || bs.total <= num(p.budgetLimit))],
+    ['安全预案至少写了 2 条', lines(p.safety) >= 2],
+    ['写了宣传方案', String(p.publicity || '').trim().length > 0],
+  ];
+}
+
+const sectionOn = (p, key) => !p.docOff?.[key];
+
 function proposal(p) {
-  const T = TYPES[p.type];
   const blocks = [];
   let n = 0;
-  const H = (t) => blocks.push({ h: `${CN[n++]}、${t}` });
+  const H = (t) => blocks.push({ h: `${CN[n++] || n}、${t}` });
   const P = (t) => String(t || '').split('\n').filter((x) => x.trim()).forEach((x) => blocks.push({ p: x }));
   const TB = (head, rows) => rows.length && blocks.push({ table: [head, ...rows] });
   const dateText = p.date ? new Date(p.date + 'T00:00:00').toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }) : '待定';
   const tl = timeline(p);
   const end = tl.length ? tl[tl.length - 1].end : toMin(p.startTime);
-
-  H('活动名称'); P(p.name);
-  if (p.theme) { H('活动主题'); P(p.theme); }
-  H('活动背景'); P(p.background);
-  H('活动目的'); P(p.goals);
-  H('时间与地点'); P(`时间：${dateText} ${p.startTime}—${hm(end)}`); P(`地点：${p.location || '待定'}`);
-  H('参与对象与规模'); P(`${p.audience || '待定'}，预计 ${p.headcount || '若干'} 人。`);
-  if (p.organizer) { H('主办单位'); P(p.organizer); }
-  H('活动流程');
-  TB(['时间', '环节', '地点', '说明'], p.schedule.map((s, i) => [`${hm(tl[i].start)}—${hm(tl[i].end)}`, s.title, s.place, [s.owner, s.note].filter(Boolean).join('：')]));
   const items = p.items.filter((i) => i.name.trim());
-  if (p.type === 'sports' || p.type === 'outing') {
-    H(p.type === 'sports' ? '比赛项目与规则' : '活动环节');
-    TB(['名称', '时长', '场地', '规则 / 说明'], items.map((i) => [i.name, `${num(i.minutes)} 分钟`, i.venue, i.note]));
-  }
-  if (p.type === 'gala') {
-    H('节目单');
-    TB(['序号', '节目', '表演者', '类型', '时长'], items.map((i, k) => [k + 1, i.name, i.who, i.cat, `${num(i.minutes)} 分钟`]));
-  }
-  if (p.groups.length) {
-    H('分组安排');
-    TB(['组名', '组长', '人数', '成员'], p.groups.map((g) => [g.name, g.leader, g.members.length || '', g.members.join('、')]));
-  }
-  if (p.scoring === 'rank' && p.groups.length) {
-    H('计分办法');
-    P(`每个项目按名次积分：${p.rankPoints.map((v, i) => `第${i + 1}名 ${v} 分`).join('，')}。各项目积分相加为团体总分，总分高者名次靠前。`);
-  }
-  if (p.scoring === 'judge') {
-    H('评分办法');
-    P(`由 ${p.judges} 位评委现场打分（满分 10 分）。${p.judges >= 5 ? '去掉一个最高分和一个最低分后' : ''}取平均分作为节目最终得分，保留两位小数。`);
-  }
-  if (p.tasks.length) {
-    H('人员分工与进度');
-    TB(['任务', '负责人', '截止日期', '状态'], [...p.tasks].sort((a, b) => String(a.due).localeCompare(String(b.due))).map((t) => [t.task, t.owner || '待定', t.due || '待定', t.done ? '已完成' : '进行中']));
-  }
   const bs = budgetSum(p);
-  if (p.budget.length) {
-    H('经费预算');
-    TB(['物品', '类别', '数量', '单价', '小计'], [...p.budget.map((b) => [b.name, b.cat, num(b.qty), money(num(b.price)), money(num(b.qty) * num(b.price))]), ['合计', '', '', '', money(bs.total)]]);
-    if (num(p.budgetLimit)) P(`预算上限 ${money(num(p.budgetLimit))}，${bs.total > num(p.budgetLimit) ? `超出 ${money(bs.total - num(p.budgetLimit))}，需调整。` : `结余 ${money(num(p.budgetLimit) - bs.total)}。`}`);
+
+  const write = {
+    basic() {
+      H('时间、地点与参与对象');
+      P(`活动时间：${dateText} ${p.startTime}—${hm(end)}`);
+      P(`活动地点：${p.location || '待定'}`);
+      P(`参与对象：${p.audience || '待定'}，预计 ${num(p.headcount) || '若干'} 人。`);
+    },
+    theme() { if (String(p.theme || '').trim()) { H('活动主题'); P(p.theme); } },
+    content() {
+      const hasText = String(p.content || '').trim();
+      const table = p.type === 'gala' || p.type === 'sports' || p.type === 'outing';
+      if (!hasText && !(table && items.length)) return;
+      H('活动内容与形式');
+      P(p.content);
+      if (p.type === 'gala') TB(['序号', '节目', '表演者', '类型', '时长'], items.map((i, k) => [k + 1, i.name, i.who, i.cat, `${num(i.minutes)} 分钟`]));
+      else if (table) TB(['名称', '时长', '场地', '规则 / 说明'], items.map((i) => [i.name, `${num(i.minutes)} 分钟`, i.venue, i.note]));
+    },
+    flow() {
+      if (!p.schedule.length) return;
+      H('活动当天流程');
+      TB(['时间', '环节', '地点', '负责人 / 说明'], p.schedule.map((s, i) => [`${hm(tl[i].start)}—${hm(tl[i].end)}`, s.title, s.place, [s.owner, s.note].filter(Boolean).join('：')]));
+    },
+    groups() {
+      if (!p.groups.length) return;
+      H('分组安排');
+      TB(['组名', '组长', '人数', '成员'], p.groups.map((g) => [g.name, g.leader, g.members.length || '', g.members.join('、')]));
+    },
+    scoring() {
+      if (p.scoring === 'rank' && p.groups.length) {
+        H('计分与评奖办法');
+        P(`每个项目按名次积分：${p.rankPoints.map((v, i) => `第${i + 1}名 ${v} 分`).join('，')}。各项目积分相加为团体总分，按总分评出团体名次。`);
+      } else if (p.scoring === 'judge') {
+        H('计分与评奖办法');
+        P(`由 ${p.judges} 位评委现场打分（满分 10 分）。${p.judges >= 5 ? '去掉一个最高分和一个最低分后，' : ''}取平均分作为节目最终得分，保留两位小数，按得分高低评奖。`);
+      }
+    },
+    tasks() {
+      if (!p.tasks.length) return;
+      H('人员分工');
+      TB(['任务', '负责人', '截止日期', '状态'], [...p.tasks].sort((a, b) => String(a.due).localeCompare(String(b.due))).map((t) => [t.task, t.owner || '待定', t.due || '待定', t.done ? '已完成' : '进行中']));
+    },
+    budget() {
+      if (!p.budget.length) return;
+      H('经费预算');
+      TB(['物品', '类别', '数量', '单价', '小计'], [...p.budget.map((b) => [b.name, b.cat, num(b.qty), money(num(b.price)), money(num(b.qty) * num(b.price))]), ['合计', '', '', '', money(bs.total)]]);
+      if (num(p.budgetLimit)) P(`预算上限 ${money(num(p.budgetLimit))}，${bs.total > num(p.budgetLimit) ? `超出 ${money(bs.total - num(p.budgetLimit))}，需要调整。` : `结余 ${money(num(p.budgetLimit) - bs.total)}。`}`);
+    },
+  };
+
+  for (const s of DOC_SECTIONS) {
+    if (!sectionOn(p, s.key)) continue;
+    if (write[s.key]) write[s.key]();
+    else if (String(p[s.key] || '').trim()) { H(s.title); P(p[s.key]); }
   }
-  H('宣传方案'); P(p.publicity);
-  H('安全预案'); P(p.safety);
   return { title: p.name + '策划案', blocks, footer: [p.organizer, new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })].filter(Boolean) };
 }
 
@@ -944,7 +1074,7 @@ async function proposalDocx(doc) {
 
 /* ---------- 界面 ---------- */
 const cur = () => plans.find((p) => p.id === curId);
-const TABS = [['overview', '概览'], ['flow', '流程'], ['groups', '分组'], ['score', '计分'], ['budget', '预算物资'], ['tasks', '分工'], ['doc', '策划案']];
+const TABS = [['overview', '概览'], ['flow', '流程'], ['groups', '分组'], ['score', '计分'], ['budget', '预算物资'], ['tasks', '分工'], ['doc', '写策划案']];
 
 function render() {
   const app = $('#app');
@@ -1200,10 +1330,52 @@ function tasksTab(p) {
   </section>`;
 }
 
+function autoSummary(p, key) {
+  const tl = timeline(p);
+  const end = tl.length ? tl[tl.length - 1].end : toMin(p.startTime);
+  const bs = budgetSum(p);
+  switch (key) {
+    case 'basic': return `${p.date || '日期未填'} ${p.startTime}—${hm(end)} · ${p.location || '地点未填'} · ${p.audience || '对象未填'} · ${num(p.headcount) || '?'} 人`;
+    case 'flow': return p.schedule.length ? `共 ${p.schedule.length} 个环节，${hm(tl[0].start)}—${hm(end)}` : '还没有排流程';
+    case 'groups': return p.groups.length ? `${p.groups.length} 个组，共 ${p.groups.reduce((s, g) => s + g.members.length, 0)} 人` : '没有分组，这部分不会写进策划案';
+    case 'scoring': return p.scoring === 'rank' ? '按名次积分' : p.scoring === 'judge' ? `${p.judges} 位评委打分` : '不计分，这部分不会写进策划案';
+    case 'tasks': return p.tasks.length ? `${p.tasks.length} 项任务，${p.tasks.filter((t) => !String(t.owner || '').trim()).length} 项还没有负责人` : '还没有任务';
+    case 'budget': return p.budget.length ? `${p.budget.length} 项，合计 ${money(bs.total)}${num(p.budgetLimit) ? `，上限 ${money(num(p.budgetLimit))}` : ''}` : '还没有预算';
+    default: return '';
+  }
+}
+
+function checksHtml(p) {
+  const checks = docChecks(p);
+  const ok = checks.filter((c) => c[1]).length;
+  return `<div class="panel-head"><h3>自查清单</h3><span class="tag">${ok} / ${checks.length}</span></div>
+    <ul class="checks">${checks.map(([t, pass]) => `<li class="${pass ? 'pass' : ''}">${pass ? '✓' : '○'} ${esc(t)}</li>`).join('')}</ul>`;
+}
+
+const TAB_NAME = Object.fromEntries([['overview', '概览'], ['flow', '流程'], ['groups', '分组'], ['score', '计分'], ['budget', '预算物资'], ['tasks', '分工']]);
+
 function docTab(p) {
-  return `<section class="panel"><h2>策划案文字</h2><p class="hint">时间、流程、分组、预算和分工会自动填进策划案，这里只需要改几段文字。</p>
-    <div class="form">${area('活动背景', 'background', p.background)}${area('活动目的', 'goals', p.goals)}${area('宣传方案', 'publicity', p.publicity)}${area('安全预案', 'safety', p.safety)}</div>
+  const secs = DOC_SECTIONS.map((s, i) => {
+    const on = sectionOn(p, s.key);
+    const how = `<details class="how"><summary>怎么写</summary><p>${esc(s.guide)}</p><ul>${s.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></details>`;
+    let body;
+    if (s.kind === 'auto') {
+      body = `<div class="auto"><span>自动生成：<b id="auto-${s.key}">${esc(autoSummary(p, s.key))}</b></span><button class="btn small" data-act="tab" data-tab="${s.tab}">去「${TAB_NAME[s.tab]}」修改</button></div>`;
+    } else if (s.kind === 'line') {
+      body = `<div class="row"><input type="text" id="d-${s.key}" data-f="${s.key}" value="${esc(p[s.key])}" style="flex:1;min-width:0" aria-label="${s.title}"><button class="btn small" data-act="sample" data-key="${s.key}">填入参考写法</button></div>`;
+    } else {
+      body = `<textarea id="d-${s.key}" data-f="${s.key}" aria-label="${s.title}" placeholder="还没写。点下面的「填入参考写法」，再按你们的情况改。">${esc(p[s.key])}</textarea><div class="row"><button class="btn small" data-act="sample" data-key="${s.key}">填入参考写法</button></div>`;
+    }
+    return `<section class="panel doc-sec ${on ? '' : 'off'}" id="sec-${s.key}">
+      <div class="panel-head"><h3><span class="secno">${i + 1}</span>${s.title}</h3><label class="inc"><input type="checkbox" id="on-${s.key}" data-docon="${s.key}" ${on ? 'checked' : ''}> 写进策划案</label></div>
+      ${how}${body}
+    </section>`;
+  }).join('');
+  return `<section class="panel"><h2>写策划案</h2>
+    <p class="hint">按顺序把每一部分写好。每部分点「怎么写」看要点，点「填入参考写法」可以先填一段范文再改。流程、分工、预算等会从其他页自动生成。</p>
+    <div id="doc-checks">${checksHtml(p)}</div>
   </section>
+  ${secs}
   <section class="panel"><div class="panel-head"><h2>预览</h2><div class="row"><button class="btn primary" data-act="docx">下载 Word</button><button class="btn" data-act="copydoc">复制全文</button></div></div>
     <article class="doc" id="doc-preview">${proposalHtml(proposal(p))}</article>
   </section>`;
@@ -1229,6 +1401,8 @@ function derive() {
   html('ranking', rankingHtml(p));
   html('budget-sum', budgetSumHtml(p));
   html('doc-preview', proposalHtml(proposal(p)));
+  html('doc-checks', checksHtml(p));
+  DOC_SECTIONS.filter((s) => s.kind === 'auto').forEach((s) => set('auto-' + s.key, autoSummary(p, s.key)));
   const names = parseRoster(p.roster);
   const per = p.groupCount ? Math.ceil((names.length || num(p.headcount)) / num(p.groupCount)) : 0;
   set('roster-count', `名单 ${names.length} 人${per ? `，每组约 ${per} 人` : ''}`);
@@ -1259,6 +1433,10 @@ document.addEventListener('input', (e) => {
   } else if (el.dataset.j) {
     const arr = (p.jscores[el.dataset.j] = p.jscores[el.dataset.j] || []);
     arr[+el.dataset.n] = val === '' ? '' : Math.max(0, Math.min(10, num(val)));
+  } else if (el.dataset.docon) {
+    p.docOff = p.docOff || {};
+    if (el.checked) delete p.docOff[el.dataset.docon]; else p.docOff[el.dataset.docon] = true;
+    el.closest('.doc-sec')?.classList.toggle('off', !el.checked);
   } else if (el.dataset.tdone) {
     const t = p.tasks.find((x) => x.id === el.dataset.tdone);
     if (t) t.done = el.checked;
@@ -1383,6 +1561,15 @@ document.addEventListener('click', async (e) => {
     const go = !p.groups.some((g) => g.members.length) || await confirmBox('重新分组会打乱现在的分组，确定吗？', '重新分组');
     if (!go) return;
     applyGroups(p, false); touch(p); render(); toast(`已分成 ${p.groups.length} 组`); return;
+  }
+  if (act === 'sample') {
+    const key = b.dataset.key;
+    if (String(p[key] || '').trim() && !(await confirmBox('这一部分已经有内容了，用参考写法替换吗？', '替换'))) return;
+    p[key] = sampleText(p, key);
+    const box = document.getElementById('d-' + key);
+    if (box) box.value = p[key];
+    touch(p); derive(); toast('已填入，记得按你们的情况改');
+    return;
   }
   if (act === 'mode') { p.scoring = b.dataset.mode; touch(p); render(); return; }
   if (act === 'bought') { const r = p.budget.find((x) => x.id === b.dataset.id); r.bought = !r.bought; touch(p); render(); return; }
