@@ -1,5 +1,5 @@
 // 离线缓存：第一次打开后，断网也能用。页面更新后版本号会变，旧缓存自动清掉。
-const CACHE = 'planner-837ba57622';
+const CACHE = 'planner-66149d8e28';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
