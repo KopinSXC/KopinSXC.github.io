@@ -157,6 +157,22 @@
   .res { display: grid; gap: 2px; text-align: left; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--paper); }
   .res small { color: var(--muted); font-size: 13px; }
   .center { text-align: center; }
+  .fb-link { display: flex; justify-content: flex-end; margin-top: -6px; }
+  .linkbtn { border: 0; background: none; color: var(--muted); font-size: 13px; padding: 6px 4px; text-decoration: underline; text-underline-offset: 3px; }
+  .linkbtn:hover { color: var(--field); }
+  .fbq { gap: 10px; }
+  .fbq h3 { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+  .req { font: 600 12px var(--font-body); color: var(--bad); background: var(--bad-soft); border-radius: 999px; padding: 1px 8px; margin-left: 6px; }
+  .opts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .opt { position: relative; }
+  .opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .opt span { display: inline-block; border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 7px 14px; font-size: 14px; cursor: pointer; }
+  .opt input:checked + span { background: var(--field-soft); border-color: var(--field); color: var(--field); font-weight: 600; }
+  .opt input:focus-visible + span { outline: 2px solid var(--field); outline-offset: 2px; }
+  .stars { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .star { border: 0; background: none; font-size: 34px; line-height: 1; color: var(--line); padding: 2px; }
+  .star.on { color: var(--marker); }
+  .fb-err { color: var(--bad); font-size: 13px; }
   .backup { padding-block: 10px; }
   .mtag { background: var(--marker-soft); color: var(--warn); }
   .live.on { border-color: var(--bad); }
@@ -1282,7 +1298,7 @@ function hideHelp() { try { localStorage.setItem('planner.helpHidden', '1'); } c
 function topBar(back) {
   const backBtn = back === 'tools' ? '<button class="btn ghost small" data-act="section" data-sec="">← 全部工具</button>'
     : back ? `<button class="btn ghost small" data-act="home">← ${curMeetingId ? '会议' : '活动策划'}</button>` : '';
-  return `<header class="top"><div class="brand">${backBtn}<h1>${back === 'tools' ? (homeSection === 'meetings' ? '会议' : '活动策划') : '活动策划工具箱'}</h1></div><div class="row"><span class="save" id="save"></span><button class="btn small ghost" data-act="help">帮助</button></div></header>`;
+  return `<header class="top"><div class="brand">${backBtn}<h1>${back === 'tools' ? ({ meetings: '会议', feedback: '意见反馈' }[homeSection] || '活动策划') : '活动策划工具箱'}</h1></div><div class="row"><span class="save" id="save"></span><button class="btn small ghost" data-act="help">帮助</button></div></header>`;
 }
 
 /* 首页的工具入口；以后加新工具就在这里加一项 */
@@ -1314,10 +1330,13 @@ function launcherBody(q) {
   const tools = TOOLS.filter((t) => has(t.label) || has(t.sub) || t.words.toLowerCase().split(' ').some((w) => w.includes(q) || q.includes(w)));
   const ps = plans.filter((p) => has(p.name) || has(p.location) || has(p.theme));
   const ms = meetings.filter((m) => has(m.title) || has(m.attendees) || m.lines.some((l) => has(l.text)));
+  const fb = /反馈|意见|建议|问卷|吐槽|bug/i.test(q) ? '<button class="res" data-act="section" data-sec="feedback"><b>意见反馈</b><small>填一份 3 分钟的问卷，告诉我们哪里不好用、想要什么工具</small></button>' : '';
+  if (fb && !tools.length && !ps.length && !ms.length) return `<h3 class="res-h">其他</h3><div class="list">${fb}</div>`;
   if (!tools.length && !ps.length && !ms.length) return `<div class="empty">没有找到「${esc(q)}」。可以试试「纪要」「分组」「预算」「录音」。</div>`;
   const hitLine = (m) => m.lines.find((l) => has(l.text));
   return `${tools.length ? `<h3 class="res-h">工具</h3><div class="tools">${tools.map(toolTile).join('')}</div>` : ''}
     ${ps.length ? `<h3 class="res-h">活动</h3><div class="list">${ps.map((p) => `<button class="res" data-act="open" data-id="${p.id}"><b>${esc(p.name)}</b><small>${esc(TYPES[p.type].label)} · ${esc(p.date || '日期待定')}</small></button>`).join('')}</div>` : ''}
+    ${fb ? `<h3 class="res-h">其他</h3><div class="list">${fb}</div>` : ''}
     ${ms.length ? `<h3 class="res-h">会议</h3><div class="list">${ms.map((m) => { const l = !has(m.title) && hitLine(m); return `<button class="res" data-mact="open" data-id="${m.id}"><b>${esc(m.title)}</b><small>${l ? `记录里：${esc(l.text.slice(0, 40))}` : `${esc(m.date)} · ${m.lines.length} 条记录`}</small></button>`; }).join('')}</div>` : ''}`;
 }
 
@@ -1328,8 +1347,10 @@ function homeView() {
     return `${topBar(false)}
     <label class="search">${ICON_SEARCH}<input type="search" id="tool-search" placeholder="搜索工具、活动或会议" autocomplete="off" aria-label="搜索"></label>
     <div id="launcher-body">${launcherBody('')}</div>
-    ${backupBar()}`;
+    ${backupBar()}
+    <div class="fb-link"><button class="linkbtn" data-act="section" data-sec="feedback">意见反馈</button></div>`;
   }
+  if (homeSection === 'feedback') return feedbackView();
   if (homeSection === 'meetings') {
     return `${topBar('tools')}
   <section class="panel"><div class="panel-head"><h2>开始一场会议</h2><button class="btn primary" data-mact="new">开始新会议</button></div>
@@ -2395,6 +2416,114 @@ document.addEventListener('click', async (e) => {
     writeMeetings();
     if (remote) { try { await remote.doc(m.id).delete(); } catch { setSave('error'); } }
     curMeetingId = null; render(); toast('已删除');
+  }
+});
+
+/* ---------- 意见反馈问卷：填完整理成一段文字，复制或分享给收集的人 ---------- */
+const FEEDBACK_TO = '把这个工具推荐给你的人';
+const FB_KEY = 'planner.feedback.draft';
+const FEEDBACK_QS = [
+  { id: 'role', q: '你的身份是？', type: 'one', opts: ['学生会或社团干部', '班委', '普通同学', '老师', '其他'] },
+  { id: 'used', q: '你用过哪些工具？', type: 'many', opts: ['活动策划', '会议', '还没用过'] },
+  { id: 'score', q: '整体用起来满意吗？', type: 'stars' },
+  { id: 'best', q: '哪些功能最好用？（可多选）', type: 'many', opts: ['粘贴要求自动生成', '自动排流程', '随机分组', '现场计分', '预算物资', '人员分工', '写策划案', '下载 Word', '导出 Excel', '会议转文字', '会议纪要'] },
+  { id: 'problems', q: '用的时候遇到过什么问题？（可多选）', type: 'many', opts: ['看不懂怎么用', '找不到想要的按钮', '导出的文件打不开', '语音转文字不准', '网页打不开或很慢', '资料不见了', '没遇到问题'], other: '其他问题' },
+  { id: 'wish', q: '你希望增加什么工具？', type: 'many', required: true, opts: ['策划案一键转 PPT', '问卷设计器', '协议模板（场地借用、赞助等）', '数据图表', '活动总结报告', '宣传文案违禁词检查', '海报模板', '参考文献格式生成', '图片转 PDF'], other: '其他想要的工具' },
+  { id: 'improve', q: '最想改进的地方？（选填）', type: 'text', ph: '哪里不好用、哪里看不懂，都可以写' },
+  { id: 'recommend', q: '你会推荐给朋友吗？', type: 'one', opts: ['会', '可能会', '不会'] },
+  { id: 'contact', q: '联系方式（选填）', type: 'line', ph: '微信号或 QQ，方便有问题时问你' },
+];
+
+function fbDraft() { try { return JSON.parse(localStorage.getItem(FB_KEY) || '{}'); } catch { return {}; } }
+function fbSave(d) { try { localStorage.setItem(FB_KEY, JSON.stringify(d)); } catch { /* 草稿存不了也能填 */ } }
+
+function feedbackView() {
+  const d = fbDraft();
+  const qs = FEEDBACK_QS.map((q, i) => {
+    const v = d[q.id];
+    let body = '';
+    if (q.type === 'one' || q.type === 'many') {
+      const type = q.type === 'one' ? 'radio' : 'checkbox';
+      body = `<div class="opts">${q.opts.map((o, k) => `<label class="opt"><input type="${type}" name="fb-${q.id}" id="fb-${q.id}-${k}" data-fb="${q.id}" value="${esc(o)}" ${(q.type === 'one' ? v === o : (v || []).includes(o)) ? 'checked' : ''}><span>${esc(o)}</span></label>`).join('')}</div>`;
+      if (q.other) body += `<input type="text" id="fb-${q.id}-other" data-fb-other="${q.id}" value="${esc(d[q.id + 'Other'] || '')}" placeholder="${esc(q.other)}（选填）" aria-label="${esc(q.other)}">`;
+    } else if (q.type === 'stars') {
+      body = `<div class="stars" role="radiogroup" aria-label="满意度">${[1, 2, 3, 4, 5].map((n) => `<button type="button" class="star ${v >= n ? 'on' : ''}" data-act="fb-star" data-n="${n}" aria-label="${n} 星">★</button>`).join('')}<span class="hint" id="fb-star-text">${['', '很不满意', '不太满意', '一般', '比较满意', '非常满意'][v || 0] || '点星星打分'}</span></div>`;
+    } else if (q.type === 'text') {
+      body = `<textarea id="fb-${q.id}" data-fb="${q.id}" placeholder="${esc(q.ph)}">${esc(v || '')}</textarea>`;
+    } else {
+      body = `<input type="text" id="fb-${q.id}" data-fb="${q.id}" value="${esc(v || '')}" placeholder="${esc(q.ph)}">`;
+    }
+    return `<section class="panel fbq" id="fbq-${q.id}"><h3><span class="secno">${i + 1}</span>${esc(q.q)}${q.required ? '<span class="req">必答</span>' : ''}</h3>${body}<p class="fb-err" id="fb-err-${q.id}" hidden></p></section>`;
+  }).join('');
+  return `${topBar('tools')}
+  <section class="panel"><h2>意见反馈</h2><p class="hint">大约 3 分钟。填完点最下面的「复制反馈」，发微信给${esc(FEEDBACK_TO)}。不会收集你的姓名，联系方式可以不填。</p></section>
+  ${qs}
+  <section class="panel"><div class="row"><button class="btn primary" data-act="fb-copy" style="min-height:52px;flex:1">复制反馈</button><button class="btn" data-act="fb-share" style="min-height:52px">分享到微信</button></div>
+    <p class="hint" id="fb-done"></p>
+    <div class="row"><span class="spacer"></span><button class="btn small ghost" data-act="fb-clear">清空重填</button></div>
+  </section>`;
+}
+
+function feedbackText() {
+  const d = fbDraft();
+  const lines = ['【活动策划工具箱 · 使用反馈】', `填写时间：${ymd(new Date())}`];
+  FEEDBACK_QS.forEach((q, i) => {
+    let v = d[q.id];
+    if (Array.isArray(v)) v = v.join('、');
+    if (q.type === 'stars') v = v ? `${'★'.repeat(v)}${'☆'.repeat(5 - v)}（${v} 分）` : '';
+    const other = q.other && String(d[q.id + 'Other'] || '').trim();
+    if (other) v = [v, `其他：${other}`].filter(Boolean).join('；');
+    lines.push(`${i + 1}. ${q.q.replace(/（.*?）/g, '')}\n${String(v || '').trim() || '（未填）'}`);
+  });
+  return lines.join('\n');
+}
+
+function feedbackValid() {
+  const d = fbDraft();
+  const bad = FEEDBACK_QS.filter((q) => q.required && !((d[q.id] || []).length || String(d[q.id + 'Other'] || '').trim()));
+  document.querySelectorAll('.fb-err').forEach((el) => (el.hidden = true));
+  bad.forEach((q) => { const el = $('#fb-err-' + q.id); el.hidden = false; el.textContent = '这一题必答：至少选一个，或者写下你想要的工具。'; });
+  if (bad.length) $('#fbq-' + bad[0].id).scrollIntoView({ behavior: 'smooth', block: 'center' });
+  return !bad.length;
+}
+
+document.addEventListener('input', (e) => {
+  const el = e.target;
+  if (!el.dataset.fb && !el.dataset.fbOther) return;
+  const d = fbDraft();
+  if (el.dataset.fbOther) d[el.dataset.fbOther + 'Other'] = el.value;
+  else if (el.type === 'checkbox') d[el.dataset.fb] = [...document.querySelectorAll(`input[name="fb-${el.dataset.fb}"]:checked`)].map((x) => x.value);
+  else d[el.dataset.fb] = el.value;
+  fbSave(d);
+});
+
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-act^="fb-"]');
+  if (!b) return;
+  const act = b.dataset.act;
+  if (act === 'fb-star') {
+    const d = fbDraft(); d.score = +b.dataset.n; fbSave(d);
+    document.querySelectorAll('.star').forEach((s, k) => s.classList.toggle('on', k < d.score));
+    $('#fb-star-text').textContent = ['', '很不满意', '不太满意', '一般', '比较满意', '非常满意'][d.score];
+    return;
+  }
+  if (act === 'fb-clear') {
+    if (await confirmBox('清空已经填的内容，重新填写？', '清空')) { fbSave({}); render(); scrollTo(0, 0); }
+    return;
+  }
+  if (!feedbackValid()) return;
+  const text = feedbackText();
+  if (act === 'fb-copy') {
+    await copyText(text);
+    $('#fb-done').textContent = `已复制。打开微信，粘贴发给${FEEDBACK_TO}就完成了，谢谢你！`;
+  }
+  if (act === 'fb-share') {
+    if (navigator.share && !IN_CLAUDE) {
+      try { await navigator.share({ text }); $('#fb-done').textContent = '谢谢你的反馈！'; return; }
+      catch (err) { if (err?.name === 'AbortError') return; }
+    }
+    await copyText(text);
+    $('#fb-done').textContent = `这里不能直接分享，已帮你复制。打开微信粘贴发给${FEEDBACK_TO}就行。`;
   }
 });
 
