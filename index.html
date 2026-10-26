@@ -140,13 +140,23 @@
   .help b { font-size: 16px; }
   .help span { color: var(--muted); font-size: 14px; }
   .welcome { border-color: var(--field); }
-  .entries { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-  .entry { display: flex; align-items: center; gap: 12px; text-align: left; padding: 14px 16px; border-radius: var(--radius); border: 2px solid var(--line); background: var(--paper); color: var(--muted); }
-  .entry span { display: grid; gap: 2px; min-width: 0; }
-  .entry b { font-size: 17px; color: var(--ink); }
-  .entry small { font-size: 12px; }
-  .entry[aria-pressed="true"] { border-color: var(--field); background: var(--field-soft); color: var(--field); }
-  .entry[aria-pressed="true"] b { color: var(--field); }
+  .search { display: flex; align-items: center; gap: 10px; padding: 0 14px; min-height: 52px; border-radius: 999px; border: 2px solid var(--line); background: var(--paper); color: var(--muted); }
+  .search:focus-within { border-color: var(--field); color: var(--field); }
+  .search input { flex: 1; min-width: 0; border: 0; background: transparent; font-size: 16px; padding: 12px 0; min-height: 0; color: var(--ink); }
+  .search input:focus { outline: none; }
+  .tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .tool { display: flex; align-items: center; gap: 16px; text-align: left; padding: 20px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--paper); color: var(--field); }
+  .tool:hover { border-color: var(--field); }
+  .tool > svg { flex: none; width: 52px; height: 52px; padding: 11px; border-radius: 14px; background: var(--field-soft); }
+  .tool span { display: grid; gap: 4px; min-width: 0; }
+  .tool b { font-size: 18px; color: var(--ink); }
+  .tool small { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .tool em { font-style: normal; font-size: 12px; color: var(--field); font-weight: 600; }
+  #launcher-body { display: grid; gap: 12px; }
+  .res-h { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  .res { display: grid; gap: 2px; text-align: left; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--paper); }
+  .res small { color: var(--muted); font-size: 13px; }
+  .center { text-align: center; }
   .backup { padding-block: 10px; }
   .mtag { background: var(--marker-soft); color: var(--warn); }
   .live.on { border-color: var(--bad); }
@@ -1202,17 +1212,67 @@ function helpHidden() { try { return localStorage.getItem('planner.helpHidden') 
 function hideHelp() { try { localStorage.setItem('planner.helpHidden', '1'); } catch { /* 存不了就只在这次隐藏 */ } }
 
 function topBar(back) {
-  return `<header class="top"><div class="brand">${back ? '<button class="btn ghost small" data-act="home">← 全部活动</button>' : ''}<h1>活动策划工具箱</h1></div><div class="row"><span class="save" id="save"></span><button class="btn small ghost" data-act="help">帮助</button></div></header>`;
+  const backBtn = back === 'tools' ? '<button class="btn ghost small" data-act="section" data-sec="">← 全部工具</button>'
+    : back ? `<button class="btn ghost small" data-act="home">← ${curMeetingId ? '会议' : '活动策划'}</button>` : '';
+  return `<header class="top"><div class="brand">${backBtn}<h1>${back === 'tools' ? (homeSection === 'meetings' ? '会议' : '活动策划') : '活动策划工具箱'}</h1></div><div class="row"><span class="save" id="save"></span><button class="btn small ghost" data-act="help">帮助</button></div></header>`;
 }
 
-/* 首页顶部的工具入口；以后加新工具就在这里加一项 */
-const ICON_PLAN = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M8.5 12l1.5 1.5 3-3M8.5 17h7"/></svg>';
-const ICON_MEET = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg>';
-const ENTRIES = [['plans', '活动策划', '流程 · 分组 · 策划案', ICON_PLAN], ['meetings', '会议', '记录 · 纪要', ICON_MEET]];
-let homeSection = (() => { try { return localStorage.getItem('planner.section') || 'plans'; } catch { return 'plans'; } })();
-function setSection(k) { homeSection = k; try { localStorage.setItem('planner.section', k); } catch { /* 只是记住上次选的入口 */ } }
+/* 首页的工具入口；以后加新工具就在这里加一项 */
+const ICON_PLAN = '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M8.5 12l1.5 1.5 3-3M8.5 17h7"/></svg>';
+const ICON_MEET = '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg>';
+const ICON_SEARCH = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
+const TOOLS = [
+  { key: 'plans', label: '活动策划', sub: '自动排流程、分组、计分、预算分工，生成 Word 策划案', icon: ICON_PLAN,
+    words: '活动 策划 策划案 方案 运动会 晚会 比赛 讲座 主题教育 团建 户外 流程 时间表 分组 计分 评分 评委 排名 大屏 预算 物资 经费 分工 任务 Word 文档 粘贴要求 通知' },
+  { key: 'meetings', label: '会议', sub: '开会时自动转文字、录音、标发言人，会后整理纪要', icon: ICON_MEET,
+    words: '会议 开会 例会 纪要 会议记录 记录 录音 转文字 语音 发言人 决定 待办 问题 Word' },
+];
+let homeSection = '';
+function setSection(k) { homeSection = k; }
+
+function toolCount(key) {
+  const n = key === 'plans' ? plans.filter((p) => !p.sample).length : meetings.length;
+  return n ? `${n} 个${key === 'plans' ? '活动' : '会议'}` : '';
+}
+
+function toolTile(t) {
+  return `<button class="tool" data-act="section" data-sec="${t.key}">${t.icon}<span><b>${t.label}</b><small>${t.sub}</small>${toolCount(t.key) ? `<em>${toolCount(t.key)}</em>` : ''}</span></button>`;
+}
+
+function launcherBody(q) {
+  q = String(q || '').trim().toLowerCase();
+  if (!q) return `<div class="tools">${TOOLS.map(toolTile).join('')}</div><p class="hint center">更多工具会陆续加进来。</p>`;
+  const has = (s) => String(s || '').toLowerCase().includes(q);
+  const tools = TOOLS.filter((t) => has(t.label) || has(t.sub) || t.words.toLowerCase().split(' ').some((w) => w.includes(q) || q.includes(w)));
+  const ps = plans.filter((p) => has(p.name) || has(p.location) || has(p.theme));
+  const ms = meetings.filter((m) => has(m.title) || has(m.attendees) || m.lines.some((l) => has(l.text)));
+  if (!tools.length && !ps.length && !ms.length) return `<div class="empty">没有找到「${esc(q)}」。可以试试「纪要」「分组」「预算」「录音」。</div>`;
+  const hitLine = (m) => m.lines.find((l) => has(l.text));
+  return `${tools.length ? `<h3 class="res-h">工具</h3><div class="tools">${tools.map(toolTile).join('')}</div>` : ''}
+    ${ps.length ? `<h3 class="res-h">活动</h3><div class="list">${ps.map((p) => `<button class="res" data-act="open" data-id="${p.id}"><b>${esc(p.name)}</b><small>${esc(TYPES[p.type].label)} · ${esc(p.date || '日期待定')}</small></button>`).join('')}</div>` : ''}
+    ${ms.length ? `<h3 class="res-h">会议</h3><div class="list">${ms.map((m) => { const l = !has(m.title) && hitLine(m); return `<button class="res" data-mact="open" data-id="${m.id}"><b>${esc(m.title)}</b><small>${l ? `记录里：${esc(l.text.slice(0, 40))}` : `${esc(m.date)} · ${m.lines.length} 条记录`}</small></button>`; }).join('')}</div>` : ''}`;
+}
+
+const backupBar = () => `<section class="panel backup"><div class="panel-head"><span class="hint">资料只存在这台设备里。换手机前记得备份，活动和会议会一起备份。</span><div class="row"><button class="btn small" data-act="backup">备份全部</button><label class="btn small">导入备份<input type="file" id="importFile" accept=".json,application/json" hidden></label></div></div></section>`;
 
 function homeView() {
+  if (!homeSection) {
+    return `${topBar(false)}
+    <label class="search">${ICON_SEARCH}<input type="search" id="tool-search" placeholder="搜索工具、活动或会议" autocomplete="off" aria-label="搜索"></label>
+    <div id="launcher-body">${launcherBody('')}</div>
+    ${backupBar()}`;
+  }
+  if (homeSection === 'meetings') {
+    return `${topBar('tools')}
+  <section class="panel"><div class="panel-head"><h2>开始一场会议</h2><button class="btn primary" data-mact="new">开始新会议</button></div>
+    <ol class="help">
+      <li><b>填会议信息</b><span>会议名称、参会人、议程。参会人会变成发言人按钮。</span></li>
+      <li><b>开会时点「开始记录」</b><span>自动转文字、录音。谁开始说话，就点一下谁的名字。</span></li>
+      <li><b>会后看「纪要」</b><span>自动整理出决定、待办和问题，检查后下载 Word。</span></li>
+    </ol>
+  </section>
+  <section class="panel"><h2>我的会议</h2>${meetingCards()}</section>`;
+  }
   const sample = plans.find((p) => p.sample);
   const list = plans.length ? `<div class="plans">${plans.map((p) => {
     const bs = budgetSum(p);
@@ -1227,15 +1287,7 @@ function homeView() {
     ${HELP_STEPS}
     ${sample ? `<div class="row"><button class="btn" data-act="open" data-id="${sample.id}">先看看示例活动</button><span class="hint">示例可以随便点、随便改，不影响别的。</span></div>` : ''}
   </section>`;
-  const body = homeSection === 'meetings' ? `
-  <section class="panel"><div class="panel-head"><h2>会议</h2><button class="btn primary" data-mact="new">开始新会议</button></div>
-    <ol class="help">
-      <li><b>填会议信息</b><span>会议名称、参会人、议程。参会人会变成发言人按钮。</span></li>
-      <li><b>开会时点「开始记录」</b><span>自动转文字、录音。谁开始说话，就点一下谁的名字。</span></li>
-      <li><b>会后看「纪要」</b><span>自动整理出决定、待办和问题，检查后下载 Word。</span></li>
-    </ol>
-  </section>
-  <section class="panel"><h2>我的会议</h2>${meetingCards()}</section>` : `
+  return `${topBar('tools')}
   ${help}
   <section class="panel"><h2>新建活动</h2>
     <button class="new-card paste-card" data-act="req-open"><b>粘贴要求，自动生成</b><span>把通知或要求粘贴进来，也可以选 Word、文本文件。会自动识别类型、时间、地点、人数、预算、分组和项目。</span></button>
@@ -1243,11 +1295,13 @@ function homeView() {
     <div class="new-grid">${Object.entries(TYPES).map(([k, t]) => `<button class="new-card" data-act="new" data-type="${k}"><b>${esc(t.label)}</b><span>${esc(t.blurb)}</span></button>`).join('')}</div>
   </section>
   <section class="panel"><h2>我的活动</h2>${list}</section>`;
-  return `${topBar(false)}
-  <nav class="entries" aria-label="选择工具">${ENTRIES.map(([k, label, sub, icon]) => `<button class="entry" data-act="section" data-sec="${k}" aria-pressed="${homeSection === k}">${icon}<span><b>${label}</b><small>${sub}</small></span></button>`).join('')}</nav>
-  ${body}
-  <section class="panel backup"><div class="panel-head"><span class="hint">资料只存在这台设备里。换手机前记得备份，活动和会议会一起备份。</span><div class="row"><button class="btn small" data-act="backup">备份全部</button><label class="btn small">导入备份<input type="file" id="importFile" accept=".json,application/json" hidden></label></div></div></section>`;
 }
+
+document.addEventListener('input', (e) => {
+  if (e.target.id !== 'tool-search') return;
+  const box = $('#launcher-body');
+  if (box) box.innerHTML = launcherBody(e.target.value);
+});
 
 function stepNav(i) {
   const prev = TABS[i - 1];
@@ -1654,6 +1708,7 @@ window.appBack = () => {
   if (!$('#big').hidden) { $('#bigClose')?.click(); return true; }
   if (curMeetingId) { curMeetingId = null; render(); return true; }
   if (curId) { curId = null; render(); return true; }
+  if (homeSection) { setSection(''); render(); return true; }
   return false;
 };
 
