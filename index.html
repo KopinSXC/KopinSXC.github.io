@@ -1295,9 +1295,9 @@ const TAB_INTRO = {
 };
 
 const HELP_STEPS = `<ol class="help">
-  <li><b>新建一个活动</b><span>点「粘贴要求，自动生成」，把通知粘贴进去；或者直接选一种活动类型。</span></li>
-  <li><b>按顶部的 1～7 一页页填</b><span>每页底部都有「下一步」按钮，照着点下去就行。不需要的页可以跳过。</span></li>
-  <li><b>点右上角的「下载 Word」</b><span>拿到写好的策划案，发给老师或团队。</span></li>
+  <li><b>最快：粘贴通知，一键出策划案</b><span>把通知粘贴进去，点「识别」，再点「直接下载 Word 策划案」。</span></li>
+  <li><b>想细改：按顶部的 1～7 一页页填</b><span>流程、分组、计分、预算、分工都能改。每页底部有「下一步」，不需要的页可以跳过。</span></li>
+  <li><b>随时下载</b><span>活动页右上角的「下载 Word」随时能点，表格可以导出 Excel。</span></li>
 </ol>`;
 
 function helpHidden() { try { return localStorage.getItem('planner.helpHidden') === '1'; } catch { return false; } }
@@ -1365,8 +1365,8 @@ function homeView() {
     return `${topBar('tools')}
   <section class="panel"><div class="panel-head"><h2>开始一场会议</h2><button class="btn primary" data-mact="new">开始新会议</button></div>
     <ol class="help">
-      <li><b>填会议信息</b><span>会议名称、参会人、议程。参会人会变成发言人按钮。</span></li>
-      <li><b>开会时点「开始记录」</b><span>自动转文字、录音。谁开始说话，就点一下谁的名字。</span></li>
+      <li><b>点「开始新会议」，再点「开始记录」</b><span>马上开始自动转文字、录音。会议名称这些可以开完会再填。</span></li>
+      <li><b>谁说话就点谁的名字</b><span>发言人在记录页上随时可以加。</span></li>
       <li><b>会后看「纪要」</b><span>自动整理出决定、待办和问题，检查后下载 Word。</span></li>
     </ol>
   </section>
@@ -1389,7 +1389,7 @@ function homeView() {
   return `${topBar('tools')}
   ${help}
   <section class="panel"><h2>新建活动</h2>
-    <button class="new-card paste-card" data-act="req-open"><b>粘贴要求，自动生成</b><span>把通知或要求粘贴进来，也可以选 Word、文本文件。会自动识别类型、时间、地点、人数、预算、分组和项目。</span></button>
+    <button class="new-card paste-card" data-act="req-open"><b>粘贴通知，一键出策划案</b><span>把通知或要求粘贴进来（也可以选 Word、文本文件），30 秒拿到 Word 策划案。想细改，再进去慢慢改。</span></button>
     <p class="hint">或者选一种类型，会自动带上常用的项目、流程、物资和分工，再按你们的情况改。</p>
     <div class="new-grid">${Object.entries(TYPES).map(([k, t]) => `<button class="new-card" data-act="new" data-type="${k}"><b>${esc(t.label)}</b><span>${esc(t.blurb)}</span></button>`).join('')}</div>
   </section>
@@ -1801,7 +1801,9 @@ function showParsed() {
     ${row(T.item, lastParsed.items.length ? lastParsed.items.map((i) => i.name).join('、') : '')}
   </dl>
   <p class="hint">${lastParsed.items.length ? '' : `没找到${T.item}，会先用模板里的${T.item}，创建后再改。`}类型不对的话，在要求里写清楚，比如「趣味运动会」「晚会」「讲座」「团建」。</p>
-  <div class="row"><span class="spacer"></span><button class="btn primary" data-act="req-create">创建活动</button></div>`;
+  <div class="row"><button class="btn primary" data-act="req-word" style="min-height:52px;flex:1">直接下载 Word 策划案</button><button class="btn" data-act="req-create" style="min-height:52px">进入修改</button></div>
+  <p class="hint">两种都会保存这个活动。以后想改，在「我的活动」里打开就行。</p>`;
+  $('#reqResult [data-act="req-word"]').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 /* 安卓 App 的返回键：先关弹窗、大屏，再回到活动列表 */
@@ -1837,6 +1839,15 @@ document.addEventListener('click', async (e) => {
   if (act === 'req-open') { openRequirements(); return; }
   if (act === 'req-close') { closeModal(); return; }
   if (act === 'req-parse') { showParsed(); return; }
+  if (act === 'req-word') {
+    if (!lastParsed) return;
+    const np = planFromRequirements(lastParsed);
+    closeModal();
+    plans.unshift(np); curId = np.id; tab = 'doc'; touch(np); render(); scrollTo(0, 0);
+    try { offerFile(`${np.name}策划案.docx`, await proposalDocx(proposal(np))); }
+    catch { toast('Word 生成失败，可以点右上角「下载 Word」再试'); }
+    return;
+  }
   if (act === 'req-create') {
     if (!lastParsed) return;
     const np = planFromRequirements(lastParsed);
@@ -2220,7 +2231,7 @@ function meetingView(m) {
     <input class="title-input" id="mf-title" data-mf="title" value="${esc(m.title)}" placeholder="会议名称（点这里修改）" aria-label="会议名称">
     <div class="facts"><span>${esc(m.date)} ${esc(m.time || '')}</span><span>${esc(m.location || '地点未填')}</span><span>${attendeeList(m).length} 人</span><span class="mono" id="board-clock">${fmtClock(m.elapsed || 0)}</span></div>
     <nav class="tabs" role="tablist">${MTABS.map(([k, l], n) => `<button class="tab" role="tab" aria-selected="${mtab === k}" data-mact="tab" data-tab="${k}"><span class="tabno">${n + 1}</span>${l}</button>`).join('')}</nav>
-    <p class="intro"><b>第 ${i + 1} 步，共 3 步</b>${['填会议名称、参会人和议程。参会人会变成「记录」页的发言人按钮。', '开会时点「开始记录」：自动转文字、录音，谁说话就点谁的名字。', '会后检查自动整理的决定和待办，再下载 Word 纪要。'][i]}</p>
+    <p class="intro"><b>第 ${i + 1} 步，共 3 步</b>${['会议名称、参会人和议程，都可以开完会再补。', '点「开始记录」就能录：自动转文字、录音，谁说话就点谁的名字，发言人可以随时加。', '会后检查自动整理的决定和待办，再下载 Word 纪要。'][i]}</p>
   </section>
   ${body}
   <nav class="stepnav">${i > 0 ? `<button class="btn" data-mact="tab" data-tab="${MTABS[i - 1][0]}">← 上一步：${MTABS[i - 1][1]}</button>` : '<span></span>'}${i < 2 ? `<button class="btn primary" data-mact="tab" data-tab="${MTABS[i + 1][0]}">下一步：${MTABS[i + 1][1]} →</button>` : '<button class="btn primary" data-mact="docx">下载 Word 纪要</button>'}</nav>`;
@@ -2263,7 +2274,8 @@ function meetingRecordTab(m) {
     </div>
     ${live.on ? '' : `<div class="row"><label class="inc"><input type="checkbox" id="pref-sr" ${prefs.sr ? 'checked' : ''}> 自动转文字</label><label class="inc"><input type="checkbox" id="pref-rec" ${prefs.rec ? 'checked' : ''}> 同时录音</label></div>`}
     <div><p class="hint">现在说话的人（谁开始说话就点谁）：</p>
-      <div class="row speakers">${['', ...names].map((n) => `<button class="chip ${live.speaker === n ? 'on' : ''}" data-mact="speaker" data-name="${esc(n)}">${n ? esc(n) : '未指定'}</button>`).join('')}${names.length ? '' : '<span class="hint">先在「会议信息」里填参会人</span>'}</div>
+      <div class="row speakers">${['', ...names].map((n) => `<button class="chip ${live.speaker === n ? 'on' : ''}" data-mact="speaker" data-name="${esc(n)}">${n ? esc(n) : '未指定'}</button>`).join('')}</div>
+      <form class="row add-speaker" id="add-speaker-form"><input type="text" id="add-speaker" placeholder="加一个发言人，输入名字" aria-label="发言人名字" style="flex:1;min-width:0"><button class="btn small" type="submit">＋ 添加</button></form>
     </div>
     <p class="interim" id="interim"></p>
   </section>
@@ -2341,6 +2353,17 @@ document.addEventListener('input', (e) => {
 });
 
 document.addEventListener('submit', (e) => {
+  if (e.target.id === 'add-speaker-form') {
+    e.preventDefault();
+    const m = curMeeting();
+    const name = $('#add-speaker').value.trim();
+    if (!m || !name) return;
+    if (!attendeeList(m).includes(name)) { m.attendees = [m.attendees, name].filter((x) => String(x || '').trim()).join(' '); touch(m); }
+    live.speaker = name;
+    renderMeeting();
+    $('#add-speaker')?.focus();
+    return;
+  }
   if (e.target.id !== 'manual-form') return;
   e.preventDefault();
   const m = curMeeting();
@@ -2355,7 +2378,7 @@ document.addEventListener('click', async (e) => {
   const act = b.dataset.mact;
   if (act === 'new') {
     const m = makeMeeting(b.dataset.plan || '');
-    setSection('meetings'); meetings.push(m); curMeetingId = m.id; curId = null; mtab = 'info'; touch(m); renderMeeting(); scrollTo(0, 0);
+    setSection('meetings'); meetings.push(m); curMeetingId = m.id; curId = null; mtab = 'record'; touch(m); renderMeeting(); scrollTo(0, 0);
     return;
   }
   if (act === 'open') { setSection('meetings'); curMeetingId = b.dataset.id; curId = null; mtab = curMeeting().lines.length ? 'minutes' : 'record'; renderMeeting(); scrollTo(0, 0); return; }
