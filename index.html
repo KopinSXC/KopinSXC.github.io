@@ -831,11 +831,12 @@ async function offerFile(filename, data, fallbackText) {
       // 手机上分两步：文件先生成好，再由这次点击直接打开分享菜单。
       // 生成文件要花时间，如果在原来那次点击里等它，系统会认为分享不是用户触发的而拒绝。
       const kb = Math.max(1, Math.round(blob.size / 1024));
+      // 「下载并打开」能选 WPS、微信等 App；网页直接分享时，这些 App 不会出现在分享菜单里
       const box = modal(`<h3>文件已生成</h3><p>${esc(filename)}<span class="hint">（${kb} KB）</span></p>
-        <button class="btn primary" data-share style="min-height:52px">发送 / 用其他 App 打开</button>
-        <p class="hint">要用 WPS 打开：在分享菜单的 App 那一排往左滑，点「更多」找到 WPS。也可以先选「存储到文件」，再从 WPS 里打开。</p>
+        <button class="btn primary" data-dl style="min-height:52px">下载并打开</button>
+        <p class="hint">打开后点分享按钮，就能选 WPS、微信，或者「存储到文件」。</p>
         <p class="hint" data-err hidden></p>
-        <div class="row"><button class="btn small ghost" data-dl>换一种方式下载</button><span class="spacer"></span><button class="btn" data-close>关闭</button></div>`);
+        <div class="row"><button class="btn small ghost" data-share>用分享菜单发送</button><span class="spacer"></span><button class="btn" data-close>关闭</button></div>`);
       box.querySelector('[data-close]').onclick = closeModal;
       box.querySelector('[data-dl]').onclick = () => { download(); closeModal(); };
       box.querySelector('[data-share]').onclick = () => {
@@ -844,7 +845,7 @@ async function offerFile(filename, data, fallbackText) {
           if (e?.name === 'AbortError') return;
           const err = box.querySelector('[data-err]');
           err.hidden = false;
-          err.textContent = `没能打开分享菜单（${e?.name || '未知错误'}：${e?.message || ''}）。可以点「换一种方式下载」。`;
+          err.textContent = `没能打开分享菜单（${e?.name || '未知错误'}：${e?.message || ''}）。可以点「下载并打开」。`;
         });
       };
       return;
