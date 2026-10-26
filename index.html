@@ -173,6 +173,12 @@
   .star { border: 0; background: none; font-size: 34px; line-height: 1; color: var(--line); padding: 2px; }
   .star.on { color: var(--marker); }
   .fb-err { color: var(--bad); font-size: 13px; }
+  .rank-row.fbbar { grid-template-columns: minmax(0, 150px) 1fr 96px; }
+  .rank-row.fbbar .name { white-space: normal; font-weight: 500; font-size: 14px; }
+  .rank-row.fbbar b small { font-family: var(--font-body); font-weight: 400; font-size: 12px; color: var(--muted); }
+  .fbwish { border-color: var(--field); }
+  .fbtexts { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; }
+  @media (max-width: 680px) { .rank-row.fbbar { grid-template-columns: minmax(0, 1fr) 84px; } .rank-row.fbbar .bar { grid-column: 1 / -1; grid-row: 2; } }
   .backup { padding-block: 10px; }
   .mtag { background: var(--marker-soft); color: var(--warn); }
   .live.on { border-color: var(--bad); }
@@ -1298,7 +1304,7 @@ function hideHelp() { try { localStorage.setItem('planner.helpHidden', '1'); } c
 function topBar(back) {
   const backBtn = back === 'tools' ? '<button class="btn ghost small" data-act="section" data-sec="">← 全部工具</button>'
     : back ? `<button class="btn ghost small" data-act="home">← ${curMeetingId ? '会议' : '活动策划'}</button>` : '';
-  return `<header class="top"><div class="brand">${backBtn}<h1>${back === 'tools' ? ({ meetings: '会议', feedback: '意见反馈' }[homeSection] || '活动策划') : '活动策划工具箱'}</h1></div><div class="row"><span class="save" id="save"></span><button class="btn small ghost" data-act="help">帮助</button></div></header>`;
+  return `<header class="top"><div class="brand">${backBtn}<h1>${back === 'tools' ? ({ meetings: '会议', feedback: '意见反馈', fbstats: '反馈统计' }[homeSection] || '活动策划') : '活动策划工具箱'}</h1></div><div class="row"><span class="save" id="save"></span><button class="btn small ghost" data-act="help">帮助</button></div></header>`;
 }
 
 /* 首页的工具入口；以后加新工具就在这里加一项 */
@@ -1330,7 +1336,8 @@ function launcherBody(q) {
   const tools = TOOLS.filter((t) => has(t.label) || has(t.sub) || t.words.toLowerCase().split(' ').some((w) => w.includes(q) || q.includes(w)));
   const ps = plans.filter((p) => has(p.name) || has(p.location) || has(p.theme));
   const ms = meetings.filter((m) => has(m.title) || has(m.attendees) || m.lines.some((l) => has(l.text)));
-  const fb = /反馈|意见|建议|问卷|吐槽|bug/i.test(q) ? '<button class="res" data-act="section" data-sec="feedback"><b>意见反馈</b><small>填一份 3 分钟的问卷，告诉我们哪里不好用、想要什么工具</small></button>' : '';
+  const fb = (/反馈|意见|建议|问卷|吐槽|bug/i.test(q) ? '<button class="res" data-act="section" data-sec="feedback"><b>意见反馈</b><small>填一份 3 分钟的问卷，告诉我们哪里不好用、想要什么工具</small></button>' : '')
+    + (/统计|汇总|反馈/.test(q) ? '<button class="res" data-act="section" data-sec="fbstats"><b>反馈汇总统计</b><small>把收到的反馈粘贴进来，自动统计、画图</small></button>' : '');
   if (fb && !tools.length && !ps.length && !ms.length) return `<h3 class="res-h">其他</h3><div class="list">${fb}</div>`;
   if (!tools.length && !ps.length && !ms.length) return `<div class="empty">没有找到「${esc(q)}」。可以试试「纪要」「分组」「预算」「录音」。</div>`;
   const hitLine = (m) => m.lines.find((l) => has(l.text));
@@ -1351,6 +1358,7 @@ function homeView() {
     <div class="fb-link"><button class="linkbtn" data-act="section" data-sec="feedback">意见反馈</button></div>`;
   }
   if (homeSection === 'feedback') return feedbackView();
+  if (homeSection === 'fbstats') return fbStatsView();
   if (homeSection === 'meetings') {
     return `${topBar('tools')}
   <section class="panel"><div class="panel-head"><h2>开始一场会议</h2><button class="btn primary" data-mact="new">开始新会议</button></div>
@@ -1800,7 +1808,7 @@ window.appBack = () => {
   if (!$('#big').hidden) { $('#bigClose')?.click(); return true; }
   if (curMeetingId) { curMeetingId = null; render(); return true; }
   if (curId) { curId = null; render(); return true; }
-  if (homeSection) { setSection(''); render(); return true; }
+  if (homeSection) { setSection(homeSection === 'fbstats' ? 'feedback' : ''); render(); return true; }
   return false;
 };
 
@@ -2430,7 +2438,6 @@ const FEEDBACK_QS = [
   { id: 'problems', q: '用的时候遇到过什么问题？（可多选）', type: 'many', opts: ['看不懂怎么用', '找不到想要的按钮', '导出的文件打不开', '语音转文字不准', '网页打不开或很慢', '资料不见了', '没遇到问题'], other: '其他问题' },
   { id: 'wish', q: '你希望增加什么工具？', type: 'many', required: true, opts: ['策划案一键转 PPT', '问卷设计器', '协议模板（场地借用、赞助等）', '数据图表', '活动总结报告', '宣传文案违禁词检查', '海报模板', '参考文献格式生成', '图片转 PDF'], other: '其他想要的工具' },
   { id: 'improve', q: '最想改进的地方？（选填）', type: 'text', ph: '哪里不好用、哪里看不懂，都可以写' },
-  { id: 'recommend', q: '你会推荐给朋友吗？', type: 'one', opts: ['会', '可能会', '不会'] },
   { id: 'contact', q: '联系方式（选填）', type: 'line', ph: '微信号或 QQ，方便有问题时问你' },
 ];
 
@@ -2460,7 +2467,7 @@ function feedbackView() {
   ${qs}
   <section class="panel"><div class="row"><button class="btn primary" data-act="fb-copy" style="min-height:52px;flex:1">复制反馈</button><button class="btn" data-act="fb-share" style="min-height:52px">分享到微信</button></div>
     <p class="hint" id="fb-done"></p>
-    <div class="row"><span class="spacer"></span><button class="btn small ghost" data-act="fb-clear">清空重填</button></div>
+    <div class="row"><button class="linkbtn" data-act="section" data-sec="fbstats">收集反馈的人：汇总统计</button><span class="spacer"></span><button class="btn small ghost" data-act="fb-clear">清空重填</button></div>
   </section>`;
 }
 
@@ -2524,6 +2531,116 @@ document.addEventListener('click', async (e) => {
     }
     await copyText(text);
     $('#fb-done').textContent = `这里不能直接分享，已帮你复制。打开微信粘贴发给${FEEDBACK_TO}就行。`;
+  }
+});
+
+/* ---------- 反馈汇总统计：把微信里收到的反馈粘贴进来，自动识别、统计、画图。数据只存在这台设备 ---------- */
+const FB_HEAD = '【活动策划工具箱 · 使用反馈】';
+const FBS_KEY = 'planner.feedback.collected';
+function fbCollected() { try { return JSON.parse(localStorage.getItem(FBS_KEY) || '[]'); } catch { return []; } }
+function fbStore(list) { try { localStorage.setItem(FBS_KEY, JSON.stringify(list)); } catch { toast('存不下了，请先导出 Excel 再清空一部分'); } }
+const fbTitle = (q) => q.q.replace(/（.*?）/g, '');
+
+// 识别一段或多段反馈文字；按题目文字对应，不依赖题号，以后增删题目也能认旧的反馈
+function parseFeedback(raw) {
+  const parts = String(raw || '').replace(/\r/g, '').split(FB_HEAD).slice(1);
+  return parts.map((part) => {
+    const rec = {};
+    const date = /填写时间：(\S+)/.exec(part);
+    rec.date = date ? date[1] : '';
+    const lines = part.split('\n').map((l) => l.trim());
+    for (let i = 0; i < lines.length; i++) {
+      const m = /^\d+\.\s*(.+)$/.exec(lines[i]);
+      if (!m) continue;
+      const q = FEEDBACK_QS.find((x) => fbTitle(x) === m[1].trim());
+      const answer = (lines[i + 1] || '').trim();
+      if (!q || !answer || answer === '（未填）') continue;
+      if (q.type === 'stars') { const n = /（(\d)\s*分）/.exec(answer); if (n) rec.score = +n[1]; continue; }
+      let main = answer;
+      const other = /(?:^|；)其他：(.*)$/.exec(answer);
+      if (other) { rec[q.id + 'Other'] = other[1].trim(); main = answer.slice(0, other.index); }
+      if (q.type === 'many') {
+        // 先按完整的选项名找（有的选项名里本身带顿号），剩下的再按顿号拆
+        let rest = main;
+        const picked = [...q.opts].sort((a, b) => b.length - a.length).filter((o) => rest.includes(o) && ((rest = rest.replace(o, '')), true));
+        rec[q.id] = picked.sort((a, b) => q.opts.indexOf(a) - q.opts.indexOf(b)).concat(rest.split('、').map((x) => x.trim()).filter(Boolean));
+      } else rec[q.id] = main.trim();
+    }
+    // 去重用识别出的内容，不用原文：夹在中间的微信昵称、时间等不影响判断
+    rec.key = JSON.stringify([rec.date, ...FEEDBACK_QS.map((q) => [rec[q.id] ?? '', rec[q.id + 'Other'] ?? '']), rec.score ?? '']);
+    delete rec.raw;
+    return rec;
+  }).filter((r) => FEEDBACK_QS.some((q) => r[q.id] != null));
+}
+
+function fbStatsView() {
+  const list = fbCollected();
+  const n = list.length;
+  const bars = (counts, total) => {
+    const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    if (!rows.length) return '<p class="hint">还没有人选</p>';
+    const max = Math.max(...rows.map((r) => r[1]));
+    return `<div class="rank">${rows.map(([k, v]) => `<div class="rank-row fbbar"><span class="name">${esc(k)}</span><div class="bar"><i style="width:${(v / max) * 100}%"></i></div><b>${v}<small> 人 · ${Math.round((v / total) * 100)}%</small></b></div>`).join('')}</div>`;
+  };
+  const texts = (arr) => arr.length ? `<ul class="fbtexts">${arr.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="hint">暂无</p>';
+  let body = '';
+  if (n) {
+    const scores = list.map((r) => r.score).filter(Boolean);
+    const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+    const dist = Object.fromEntries([5, 4, 3, 2, 1].map((s) => [`${s} 星`, scores.filter((x) => x === s).length]).filter((e) => e[1]));
+    // 「希望增加什么工具」排在最前面，其余按题目顺序
+    const choiceQs = FEEDBACK_QS.filter((q) => q.type === 'one' || q.type === 'many').sort((a, b) => (b.id === 'wish') - (a.id === 'wish'));
+    const sections = choiceQs.map((q) => {
+      const counts = {};
+      list.forEach((r) => [].concat(r[q.id] || []).forEach((v) => (counts[v] = (counts[v] || 0) + 1)));
+      const others = q.other ? list.map((r) => r[q.id + 'Other']).filter(Boolean) : [];
+      return `<section class="panel${q.id === 'wish' ? ' fbwish' : ''}"><h3>${esc(fbTitle(q))}</h3>${bars(counts, n)}${q.other ? `<h4 class="res-h">${esc(q.other)}（${others.length}）</h4>${texts(others)}` : ''}</section>`;
+    });
+    body = `<section class="panel"><div class="stats">
+        <div class="stat"><span>收到反馈</span><b>${n} 份</b><span>${esc(list.map((r) => r.date).filter(Boolean).sort()[0] || '')}${list.length > 1 ? ' 起' : ''}</span></div>
+        <div class="stat"><span>平均满意度</span><b>${scores.length ? avg.toFixed(1) + ' 星' : '—'}</b><span>${scores.length} 人打了分</span></div>
+      </div>${scores.length ? bars(dist, scores.length) : ''}</section>
+      ${sections.join('')}
+      <section class="panel"><h3>最想改进的地方（${list.filter((r) => r.improve).length}）</h3>${texts(list.map((r) => r.improve).filter(Boolean))}</section>
+      <section class="panel"><h3>留了联系方式的人（${list.filter((r) => r.contact).length}）</h3>${texts(list.map((r) => r.contact).filter(Boolean))}</section>`;
+  }
+  return `${topBar('tools')}
+  <section class="panel"><h2>反馈汇总统计</h2>
+    <p class="hint">把微信里收到的反馈复制下来，粘贴到下面，可以一次粘贴很多份。重复的会自动跳过。统计只保存在这台设备里，别人看不到。</p>
+    <textarea id="fbs-input" placeholder="在这里粘贴收到的反馈（以「${FB_HEAD}」开头）"></textarea>
+    <div class="row"><button class="btn primary" data-act="fbs-add">识别并加入统计</button><span class="hint" id="fbs-msg"></span></div>
+  </section>
+  ${n ? body : '<div class="empty">还没有统计数据。收到反馈后，粘贴到上面就会出现图表。</div>'}
+  ${n ? `<section class="panel"><div class="row"><button class="btn" data-act="fbs-xlsx">导出 Excel</button><span class="spacer"></span><button class="btn small danger" data-act="fbs-clear">清空统计</button></div></section>` : ''}`;
+}
+
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-act^="fbs-"]');
+  if (!b) return;
+  const act = b.dataset.act;
+  if (act === 'fbs-add') {
+    const recs = parseFeedback($('#fbs-input').value);
+    if (!recs.length) { $('#fbs-msg').textContent = `没认出反馈。请确认粘贴的内容以「${FB_HEAD}」开头。`; return; }
+    const list = fbCollected();
+    const seen = new Set(list.map((r) => r.key));
+    const fresh = recs.filter((r) => !seen.has(r.key) && (seen.add(r.key), true));
+    fbStore(list.concat(fresh));
+    render();
+    toast(`加入了 ${fresh.length} 份${recs.length > fresh.length ? `，跳过 ${recs.length - fresh.length} 份重复的` : ''}`);
+    return;
+  }
+  if (act === 'fbs-clear') {
+    if (await confirmBox('清空全部统计数据？清空后不能恢复，建议先导出 Excel。', '清空')) { fbStore([]); render(); }
+    return;
+  }
+  if (act === 'fbs-xlsx') {
+    const qs = FEEDBACK_QS;
+    const head = ['填写时间', ...qs.flatMap((q) => (q.other ? [fbTitle(q), q.other] : [fbTitle(q)]))];
+    const rows = fbCollected().map((r) => [r.date, ...qs.flatMap((q) => {
+      const v = q.type === 'stars' ? (r.score || '') : [].concat(r[q.id] || []).join('、');
+      return q.other ? [v, r[q.id + 'Other'] || ''] : [v];
+    })]);
+    offerSheets(`反馈汇总-${ymd(new Date())}.xlsx`, [{ name: '反馈', rows: [head, ...rows] }]);
   }
 });
 
