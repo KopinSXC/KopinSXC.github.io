@@ -819,7 +819,8 @@ async function offerFile(filename, data, fallbackText) {
     const blob = data instanceof Blob ? data : new Blob([data], { type: mimeOf(filename) });
     const file = new File([blob], filename, { type: mimeOf(filename) });
     if (/iPhone|iPad|Android/i.test(navigator.userAgent) && navigator.canShare?.({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: filename }); return; }
+      // 只分享文件本身：附带标题文字时，WPS 等 App 会把标题当成内容存下来
+      try { await navigator.share({ files: [file] }); return; }
       catch (e) { if (e?.name === 'AbortError') return; }
     }
     const a = document.createElement('a');
