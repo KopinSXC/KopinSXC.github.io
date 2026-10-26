@@ -851,7 +851,7 @@ async function connect() {
 }
 
 /* ---------- 导出 ---------- */
-const MIME = { mp4: 'audio/mp4', webm: 'audio/webm', csv: 'text/csv', json: 'application/json', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
+const MIME = { xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', mp4: 'audio/mp4', webm: 'audio/webm', csv: 'text/csv', json: 'application/json', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
 const mimeOf = (name) => MIME[name.split('.').pop()] || 'application/octet-stream';
 
 async function toBase64(data) {
@@ -924,36 +924,91 @@ async function copyText(text, area) {
   catch { if (area) { area.focus(); area.select(); } toast('请长按选中后复制'); }
 }
 
-function csv(rows) {
-  const cell = (v) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-  return '﻿' + rows.map((r) => r.map(cell).join(',')).join('\r\n');
+/* 生成真正的 Excel 文件（.xlsx）：表头加粗带底色、全部带边框、列宽按内容、首行冻结，数字保存成数字 */
+async function xlsxBlob(sheets) {
+  if (!window.JSZip) throw new Error('nozip');
+  const x = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '');
+  const XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+  const colName = (i) => { let s = ''; for (i += 1; i > 0; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + ((i - 1) % 26)) + s; return s; };
+  // 中文字符按两个宽度算
+  const width = (v) => [...String(v ?? '')].reduce((w, ch) => w + (ch.charCodeAt(0) > 255 ? 2 : 1), 0);
+  const safeName = (n, i) => (String(n || `表${i + 1}`).replace(/[\[\]:*?/\\]/g, '').slice(0, 31) || `表${i + 1}`);
+
+  const sheetXml = ({ rows }) => {
+    const cols = Math.max(...rows.map((r) => r.length));
+    const widths = Array.from({ length: cols }, (_, c) => Math.min(60, Math.max(6, ...rows.map((r) => width(r[c]))) + 2));
+    const data = rows.map((r, ri) => `<row r="${ri + 1}">${Array.from({ length: cols }, (_, c) => {
+      const v = r[c];
+      const ref = colName(c) + (ri + 1);
+      if (ri > 0 && typeof v === 'number' && Number.isFinite(v)) return `<c r="${ref}" s="3"><v>${v}</v></c>`;
+      return `<c r="${ref}" s="${ri === 0 ? 1 : 2}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`;
+    }).join('')}</row>`).join('');
+    return `${XML}<worksheet ${NS}><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="18"/><cols>${widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${data}</sheetData><pageMargins left="0.5" right="0.5" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>`;
+  };
+
+  const border = '<border><left style="thin"><color rgb="FFBFC8C2"/></left><right style="thin"><color rgb="FFBFC8C2"/></right><top style="thin"><color rgb="FFBFC8C2"/></top><bottom style="thin"><color rgb="FFBFC8C2"/></bottom><diagonal/></border>';
+  const styles = `${XML}<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<fonts count="2"><font><sz val="11"/><name val="宋体"/><charset val="134"/></font><font><b/><sz val="11"/><name val="宋体"/><charset val="134"/></font></fonts>
+<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE3F1E9"/><bgColor indexed="64"/></patternFill></fill></fills>
+<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>${border}</borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf></cellXfs>
+<cellStyles count="1"><cellStyle name="常规" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+
+  const names = sheets.map((s, i) => safeName(s.name, i));
+  const zip = new JSZip();
+  zip.file('[Content_Types].xml', `${XML}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>`);
+  zip.file('_rels/.rels', `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>`);
+  zip.file('xl/workbook.xml', `${XML}<workbook ${NS}><bookViews><workbookView/></bookViews><sheets>${names.map((n, i) => `<sheet name="${x(n)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>`);
+  zip.file('xl/_rels/workbook.xml.rels', `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`);
+  zip.file('xl/styles.xml', styles);
+  sheets.forEach((s, i) => zip.file(`xl/worksheets/sheet${i + 1}.xml`, sheetXml(s)));
+  zip.file('docProps/core.xml', `${XML}<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:creator>活动策划工具箱</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString().replace(/\.\d+Z$/, 'Z')}</dcterms:created></cp:coreProperties>`);
+  zip.file('docProps/app.xml', `${XML}<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>活动策划工具箱</Application></Properties>`);
+  return zip.generateAsync({ type: 'blob', mimeType: MIME.xlsx, compression: 'DEFLATE' });
+}
+
+/* 活动里的各张表 */
+function planSheet(p, kind) {
+  if (kind === 'schedule') {
+    const tl = timeline(p);
+    return { name: '流程', rows: [['开始', '结束', '环节', '分钟', '地点', '负责人', '说明'], ...p.schedule.map((s, i) => [hm(tl[i].start), hm(tl[i].end), s.title, num(s.minutes), s.place, s.owner, s.note])] };
+  }
+  if (kind === 'groups') {
+    return { name: '分组', rows: [['组名', '组长', '人数', '成员'], ...p.groups.map((g) => [g.name, g.leader, g.members.length, g.members.join('、')])] };
+  }
+  if (kind === 'scores') {
+    if (p.scoring === 'judge') {
+      const rows = judged(p);
+      return { name: '成绩', rows: [['名次', '节目', '表演者', ...Array.from({ length: p.judges }, (_, j) => `评委${j + 1}`), '最终得分'], ...rows.map((r) => [r.place === '' ? '' : r.place, r.name, r.who, ...Array.from({ length: p.judges }, (_, j) => { const v = p.jscores?.[r.id]?.[j]; return v === '' || v == null ? '' : num(v); }), r.avg == null ? '' : Math.round(r.avg * 100) / 100])] };
+    }
+    const items = p.items.filter((i) => i.name.trim());
+    return { name: '成绩', rows: [['名次', '队伍', ...items.map((i) => i.name), '加分', '总分'], ...standings(p).map((s) => [s.place, s.name, ...items.map((it) => { const r = p.results?.[it.id]?.[s.id]; return r ? num(p.rankPoints[r - 1]) : ''; }), num(p.bonus?.[s.id]) || '', s.total])] };
+  }
+  if (kind === 'tasks') {
+    return { name: '分工', rows: [['任务', '负责人', '截止日期', '状态'], ...[...p.tasks].sort((a, b) => String(a.due || '9').localeCompare(String(b.due || '9'))).map((t) => [t.task, t.owner, t.due, t.done ? '已完成' : '进行中'])] };
+  }
+  const { total } = budgetSum(p);
+  return { name: '预算', rows: [['物品', '类别', '数量', '单价（元）', '小计（元）', '负责人', '状态'], ...p.budget.map((b) => [b.name, b.cat, num(b.qty), num(b.price), Math.round(num(b.qty) * num(b.price) * 100) / 100, b.owner, b.bought ? '已买' : '待买']), ['合计', '', '', '', Math.round(total * 100) / 100, '', '']] };
+}
+
+const sheetText = (sheet) => sheet.rows.map((r) => r.join('\t')).join('\n');
+
+async function offerSheets(filename, sheets) {
+  try { offerFile(filename, await xlsxBlob(sheets), sheets.map((s) => `【${s.name}】\n${sheetText(s)}`).join('\n\n')); }
+  catch { toast('Excel 生成失败，请稍后再试'); }
 }
 
 function exportCsv(kind) {
   const p = cur();
-  let rows, name;
-  if (kind === 'schedule') {
-    const tl = timeline(p);
-    rows = [['时间', '环节', '分钟', '地点', '负责人', '说明'], ...p.schedule.map((s, i) => [`${hm(tl[i].start)}-${hm(tl[i].end)}`, s.title, s.minutes, s.place, s.owner, s.note])];
-    name = '流程';
-  } else if (kind === 'groups') {
-    rows = [['组名', '组长', '人数', '成员'], ...p.groups.map((g) => [g.name, g.leader, g.members.length, g.members.join('、')])];
-    name = '分组';
-  } else if (kind === 'scores') {
-    if (p.scoring === 'judge') {
-      rows = [['名次', '节目', '表演者', '最终得分', '评委人数'], ...judged(p).map((r) => [r.place, r.name, r.who, r.avg == null ? '' : r.avg.toFixed(2), r.count])];
-    } else {
-      const items = p.items.filter((i) => i.name.trim());
-      rows = [['名次', '队伍', ...items.map((i) => i.name), '加分', '总分'], ...standings(p).map((s) => [s.place, s.name, ...items.map((it) => { const r = p.results?.[it.id]?.[s.id]; return r ? `第${r}名(${num(p.rankPoints[r - 1])}分)` : ''; }), num(p.bonus?.[s.id]) || '', s.total])];
-    }
-    name = '成绩';
-  } else {
-    const { total } = budgetSum(p);
-    rows = [['物品', '类别', '数量', '单价', '小计', '负责人', '状态'], ...p.budget.map((b) => [b.name, b.cat, b.qty, b.price, num(b.qty) * num(b.price), b.owner, b.bought ? '已买' : '待买']), ['合计', '', '', '', total, '', '']];
-    name = '预算';
+  if (kind === 'all') {
+    const kinds = ['schedule', 'groups', 'scores', 'budget', 'tasks'].filter((k) => k !== 'groups' || p.groups.length).filter((k) => k !== 'scores' || p.scoring !== 'off');
+    offerSheets(`${p.name}-全部表格.xlsx`, kinds.map((k) => planSheet(p, k)));
+    return;
   }
-  const text = csv(rows);
-  offerFile(`${p.name}-${name}.csv`, text, text.replace(/^﻿/, '').replace(/,/g, '\t'));
+  const sheet = planSheet(p, kind);
+  offerSheets(`${p.name}-${sheet.name}.xlsx`, [sheet]);
 }
 
 /* 策划案：按标准结构分成若干部分。文字部分由用户写，其余从各页自动生成。
@@ -1351,7 +1406,7 @@ function overviewTab(p) {
     </div>
   </section>
   ${p.requirements ? `<section class="panel"><details><summary><h2 style="display:inline">原始要求</h2></summary><div style="margin-top:12px">${area('创建时粘贴的要求，留着方便对照', 'requirements', p.requirements)}</div></details></section>` : ''}
-  <section class="panel"><div class="row"><button class="btn small" data-mact="new" data-plan="${p.id}">为这个活动开会</button><button class="btn small" data-act="dup">复制这个活动</button><span class="spacer"></span><button class="btn small danger" data-act="del">删除这个活动</button></div></section>`;
+  <section class="panel"><div class="row"><button class="btn small" data-act="csv" data-kind="all">导出全部表格（Excel）</button><button class="btn small" data-mact="new" data-plan="${p.id}">为这个活动开会</button><button class="btn small" data-act="dup">复制这个活动</button><span class="spacer"></span><button class="btn small danger" data-act="del">删除这个活动</button></div></section>`;
 }
 
 function statsHtml(p) {
@@ -1400,7 +1455,7 @@ function flowTab(p) {
   <section class="panel">
     <div class="panel-head"><h2>流程时间表</h2><div class="row">
       <label class="f" style="grid-auto-flow:column;align-items:center;gap:8px"><span>开始</span><input type="time" id="f-startTime2" data-f="startTime" value="${esc(p.startTime)}" style="width:auto"></label>
-      <button class="btn small" data-act="add" data-l="schedule">＋ 环节</button><button class="btn small" data-act="csv" data-kind="schedule">导出表格</button></div></div>
+      <button class="btn small" data-act="add" data-l="schedule">＋ 环节</button><button class="btn small" data-act="csv" data-kind="schedule">导出 Excel</button></div></div>
     ${colhead('cols-sched', ['时间', '环节', '分钟', '地点', '负责人', ''])}
     <div class="list">${p.schedule.map((s, i) => schedRow(p, s, i)).join('') || '<div class="empty">点上面的按钮自动生成，或手动添加</div>'}</div>
     <p class="hint" id="flow-end">${flowEndText(p)}</p>
@@ -1444,7 +1499,7 @@ function groupsTab(p) {
       <label class="f"><span>组名风格</span><select id="f-groupTheme" data-f="groupTheme">${Object.entries(GROUP_THEMES).map(([k, t]) => `<option value="${k}" ${p.groupTheme === k ? 'selected' : ''}>${t.label}</option>`).join('')}</select></label>
       <label class="f wide"><span>名单（可直接从 Excel 或微信粘贴，用空格、逗号、换行分开都行）</span><textarea id="f-roster" data-f="roster" placeholder="不填名单也能分组，只是每组没有成员">${esc(p.roster)}</textarea></label>
     </div>
-    <div class="row"><button class="btn primary" data-act="regroup">随机分组</button><span class="hint" id="roster-count">名单 ${names.length} 人${per ? `，每组约 ${per} 人` : ''}</span><span class="spacer"></span><button class="btn small" data-act="csv" data-kind="groups" ${p.groups.length ? '' : 'disabled'}>导出表格</button></div>
+    <div class="row"><button class="btn primary" data-act="regroup">随机分组</button><span class="hint" id="roster-count">名单 ${names.length} 人${per ? `，每组约 ${per} 人` : ''}</span><span class="spacer"></span><button class="btn small" data-act="csv" data-kind="groups" ${p.groups.length ? '' : 'disabled'}>导出 Excel</button></div>
   </section>
   <section class="panel"><h2>分组结果</h2>
     ${p.groups.length ? `<div class="groups">${p.groups.map((g) => `<div class="group">
@@ -1467,7 +1522,7 @@ function scoreTab(p) {
       ${items.map((it) => `<tr><td>${esc(it.name)}</td>${Array.from({ length: p.judges }, (_, j) => `<td><input type="number" step="0.1" min="0" max="10" inputmode="decimal" id="j-${it.id}-${j}" data-j="${it.id}" data-n="${j}" value="${esc(p.jscores?.[it.id]?.[j] ?? '')}" aria-label="${esc(it.name)} 评委 ${j + 1}"></td>`).join('')}</tr>`).join('')}
       </tbody></table></div>` : '<div class="empty">先在「流程」里添加节目</div>'}
     </section>
-    <section class="panel"><div class="panel-head"><h2>实时排名</h2><div class="row"><button class="btn small" data-act="big">大屏展示</button><button class="btn small" data-act="csv" data-kind="scores">导出成绩</button></div></div><div id="ranking">${rankingHtml(p)}</div></section>`;
+    <section class="panel"><div class="panel-head"><h2>实时排名</h2><div class="row"><button class="btn small" data-act="big">大屏展示</button><button class="btn small" data-act="csv" data-kind="scores">导出 Excel</button></div></div><div id="ranking">${rankingHtml(p)}</div></section>`;
   }
   const items = p.items.filter((i) => i.name.trim());
   if (!p.groups.length) return head + '<section class="panel"><div class="empty">先在「分组」里分好组</div></section>';
@@ -1480,7 +1535,7 @@ function scoreTab(p) {
     <tr><td>额外加分</td>${p.groups.map((g) => `<td><input type="number" id="b-${g.id}" data-bonus="${g.id}" value="${esc(p.bonus?.[g.id] ?? '')}" placeholder="0" aria-label="${esc(g.name)} 加分"></td>`).join('')}</tr>
     </tbody></table></div>
   </section>
-  <section class="panel"><div class="panel-head"><h2>实时排名</h2><div class="row"><button class="btn small" data-act="big">大屏展示</button><button class="btn small" data-act="csv" data-kind="scores">导出成绩</button></div></div><div id="ranking">${rankingHtml(p)}</div></section>`;
+  <section class="panel"><div class="panel-head"><h2>实时排名</h2><div class="row"><button class="btn small" data-act="big">大屏展示</button><button class="btn small" data-act="csv" data-kind="scores">导出 Excel</button></div></div><div id="ranking">${rankingHtml(p)}</div></section>`;
 }
 
 function rankingHtml(p) {
@@ -1498,7 +1553,7 @@ function rankingHtml(p) {
 function budgetTab(p) {
   return `<section class="panel"><div id="budget-sum">${budgetSumHtml(p)}</div></section>
   <section class="panel"><div class="panel-head"><h2>物资清单</h2><div class="row">${field('预算上限（元）', 'budgetLimit', p.budgetLimit, 'number')}</div></div>
-    <div class="row"><button class="btn small" data-act="add" data-l="budget">＋ 添加物品</button><button class="btn small" data-act="csv" data-kind="budget">导出表格</button></div>
+    <div class="row"><button class="btn small" data-act="add" data-l="budget">＋ 添加物品</button><button class="btn small" data-act="csv" data-kind="budget">导出 Excel</button></div>
     ${colhead('cols-budget', ['物品', '类别', '数量', '单价', '负责人', '状态', ''])}
     <div class="list">${p.budget.map((b) => `<div class="item cols-budget ${b.bought ? 'done' : ''}">
       <input class="full" id="bg-${b.id}-name" data-l="budget" data-id="${b.id}" data-k="name" value="${esc(b.name)}" placeholder="物品" aria-label="物品">
@@ -1527,7 +1582,7 @@ function budgetSumHtml(p) {
 function tasksTab(p) {
   const today = ymd(new Date());
   const sorted = [...p.tasks].sort((a, b) => (a.done - b.done) || String(a.due || '9').localeCompare(String(b.due || '9')));
-  return `<section class="panel"><div class="panel-head"><h2>分工</h2><button class="btn small" data-act="add" data-l="tasks">＋ 添加任务</button></div>
+  return `<section class="panel"><div class="panel-head"><h2>分工</h2><div class="row"><button class="btn small" data-act="add" data-l="tasks">＋ 添加任务</button><button class="btn small" data-act="csv" data-kind="tasks">导出 Excel</button></div></div>
     <p class="hint">${p.date ? '截止日期按活动日期自动倒推，也可以手动改。' : '在「概览」填上活动日期，截止日期会自动倒推。'}</p>
     ${colhead('cols-task', ['', '任务', '负责人', '截止', ''])}
     <div class="list">${sorted.map((t) => `<div class="item cols-task ${t.done ? 'done' : ''}">
@@ -2192,7 +2247,7 @@ function meetingMinutesTab(m) {
   <section class="panel"><h3>问题与风险（一行一条）</h3><textarea id="ms-issues" data-ms="issues">${esc(s.issues.join('\n'))}</textarea></section>
   <section class="panel"><div class="panel-head"><h2>导出</h2></div>
     <label class="inc"><input type="checkbox" id="mf-withTranscript" data-mf="withTranscript" ${m.withTranscript ? 'checked' : ''}> 纪要后面附上完整的会议记录（带时间和发言人）</label>
-    <div class="row"><button class="btn primary" data-mact="docx">下载 Word 纪要</button><button class="btn" data-mact="copytext">复制全文</button></div>
+    <div class="row"><button class="btn primary" data-mact="docx">下载 Word 纪要</button><button class="btn" data-mact="xlsx">导出 Excel</button><button class="btn" data-mact="copytext">复制全文</button></div>
   </section>`;
 }
 
@@ -2294,6 +2349,16 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if (act === 'copytext') { copyText(proposalText(minutesDoc(m))); return; }
+  if (act === 'xlsx') {
+    const sm = m.summary || extractSummary(m);
+    const sheets = [
+      { name: '待办', rows: [['事项', '负责人', '截止日期'], ...sm.todos.map((t) => [t.task, t.owner, t.due])] },
+      { name: '决定和问题', rows: [['类型', '内容'], ...sm.decisions.map((d) => ['决定', d]), ...sm.issues.map((d) => ['问题', d])] },
+      { name: '会议记录', rows: [['时间', '发言人', '内容', '标记'], ...m.lines.map((l) => [fmtClock(l.t), l.speaker, l.text, { decision: '决定', todo: '待办', issue: '问题' }[l.tag] || ''])] },
+    ];
+    offerSheets(`${m.title}-会议表格.xlsx`, sheets);
+    return;
+  }
   if (act === 'saveaudio') {
     const a = m.audio[+b.dataset.k];
     const blob = await audioGet(a.key).catch(() => null);
