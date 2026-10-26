@@ -173,6 +173,8 @@
   .star { border: 0; background: none; font-size: 34px; line-height: 1; color: var(--line); padding: 2px; }
   .star.on { color: var(--marker); }
   .fb-err { color: var(--bad); font-size: 13px; }
+  .fb-qr img { display: block; width: min(240px, 70vw); height: auto; margin: 4px auto; border-radius: 12px; background: #fff; padding: 8px; box-shadow: 0 0 0 1px var(--line); }
+  .fb-steps { margin: 0; padding-left: 22px; display: grid; gap: 6px; font-size: 14px; color: var(--ink); }
   .rank-row.fbbar { grid-template-columns: minmax(0, 150px) 1fr 96px; }
   .rank-row.fbbar .name { white-space: normal; font-weight: 500; font-size: 14px; }
   .rank-row.fbbar b small { font-family: var(--font-body); font-weight: 400; font-size: 12px; color: var(--muted); }
@@ -2428,7 +2430,7 @@ document.addEventListener('click', async (e) => {
 });
 
 /* ---------- 意见反馈问卷：填完整理成一段文字，复制或分享给收集的人 ---------- */
-const FEEDBACK_TO = '把这个工具推荐给你的人';
+const FEEDBACK_TO = '我';
 const FB_KEY = 'planner.feedback.draft';
 const FEEDBACK_QS = [
   { id: 'role', q: '你的身份是？', type: 'one', opts: ['学生会或社团干部', '班委', '普通同学', '老师', '其他'] },
@@ -2463,10 +2465,17 @@ function feedbackView() {
     return `<section class="panel fbq" id="fbq-${q.id}"><h3><span class="secno">${i + 1}</span>${esc(q.q)}${q.required ? '<span class="req">必答</span>' : ''}</h3>${body}<p class="fb-err" id="fb-err-${q.id}" hidden></p></section>`;
   }).join('');
   return `${topBar('tools')}
-  <section class="panel"><h2>意见反馈</h2><p class="hint">大约 3 分钟。填完点最下面的「复制反馈」，发微信给${esc(FEEDBACK_TO)}。不会收集你的姓名，联系方式可以不填。</p></section>
+  <section class="panel"><h2>意见反馈</h2><p class="hint">大约 3 分钟。填完点最下面的「复制反馈」，再加我微信发给我。不会收集你的姓名，联系方式可以不填。</p></section>
   ${qs}
-  <section class="panel"><div class="row"><button class="btn primary" data-act="fb-copy" style="min-height:52px;flex:1">复制反馈</button><button class="btn" data-act="fb-share" style="min-height:52px">分享到微信</button></div>
+  <section class="panel"><h3><span class="secno">1</span>复制反馈</h3>
+    <div class="row"><button class="btn primary" data-act="fb-copy" style="min-height:52px;flex:1">复制反馈</button><button class="btn" data-act="fb-share" style="min-height:52px">分享到微信</button></div>
     <p class="hint" id="fb-done"></p>
+  </section>
+  <section class="panel fb-qr"><h3><span class="secno">2</span>加我微信，把反馈发给我</h3>
+    <img src="wechat-qr.png" alt="我的微信二维码" width="240" height="244" onerror="this.closest('.fb-qr').hidden = true">
+    <ol class="fb-steps"><li>长按上面的二维码，选「保存图片」或「添加到照片」。</li><li>打开微信「扫一扫」，点右上角的相册，选这张图片。</li><li>加好友后，把复制的反馈粘贴发给我。已经是好友的，直接发给我就行。</li></ol>
+  </section>
+  <section class="panel">
     <div class="row"><button class="linkbtn" data-act="section" data-sec="fbstats">收集反馈的人：汇总统计</button><span class="spacer"></span><button class="btn small ghost" data-act="fb-clear">清空重填</button></div>
   </section>`;
 }
@@ -2522,7 +2531,7 @@ document.addEventListener('click', async (e) => {
   const text = feedbackText();
   if (act === 'fb-copy') {
     await copyText(text);
-    $('#fb-done').textContent = `已复制。打开微信，粘贴发给${FEEDBACK_TO}就完成了，谢谢你！`;
+    $('#fb-done').textContent = `已复制。按下面第 2 步加我微信，把反馈粘贴发给${FEEDBACK_TO}就完成了，谢谢你！`;
   }
   if (act === 'fb-share') {
     if (navigator.share && !IN_CLAUDE) {
