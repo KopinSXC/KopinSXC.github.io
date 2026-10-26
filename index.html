@@ -140,6 +140,39 @@
   .help b { font-size: 16px; }
   .help span { color: var(--muted); font-size: 14px; }
   .welcome { border-color: var(--field); }
+  .mtag { background: var(--marker-soft); color: var(--warn); }
+  .live.on { border-color: var(--bad); }
+  .live-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .live-clock { font-size: 40px; font-weight: 500; line-height: 1.1; }
+  .live.on .live-clock { color: var(--bad); }
+  #live-status.bad { color: var(--bad); }
+  .rec-btn { min-height: 56px; padding: 12px 22px; font-size: 17px; font-weight: 700; background: var(--bad); border-color: var(--bad); color: #fff; border-radius: 999px; }
+  .rec-btn.stop { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .speakers .chip { min-height: 40px; padding: 6px 14px; font-size: 15px; }
+  .interim { min-height: 1.6em; color: var(--muted); font-style: italic; }
+  .lines { display: grid; gap: 6px; max-height: 60vh; overflow-y: auto; }
+  .line { display: grid; grid-template-columns: 52px 96px minmax(0, 1fr) auto; gap: 8px; align-items: start; padding: 6px; border-radius: 8px; border: 1px solid var(--line); }
+  .line.tag-decision { border-color: var(--field); background: var(--field-soft); }
+  .line.tag-todo { border-color: var(--marker); background: var(--marker-soft); }
+  .line.tag-issue { border-color: var(--bad); background: var(--bad-soft); }
+  .lt { font-size: 12px; color: var(--muted); padding-top: 9px; }
+  .ls { min-height: 34px; padding: 4px 6px; font-size: 13px; }
+  .ltext { min-height: 34px; padding: 6px 8px; resize: none; overflow: hidden; line-height: 1.5; }
+  .ltags { display: flex; gap: 4px; align-items: center; }
+  .ltags .chip { min-height: 30px; padding: 2px 8px; font-size: 12px; }
+  .cols-mtodo { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 150px 32px; }
+  .audio-row { grid-template-columns: auto minmax(0, 1fr) auto 32px; }
+  .audio-row audio { width: 100%; min-width: 0; }
+  @media (max-width: 680px) {
+    .line { grid-template-columns: 38px minmax(0, 1fr) auto; gap: 4px 6px; }
+    .line .ls { min-height: 30px; padding: 2px 4px; }
+    .line .ltags { grid-row: 1; grid-column: 3; }
+    .line .ltext { grid-row: 2; grid-column: 1 / -1; }
+    .cols-mtodo { grid-template-columns: repeat(2, minmax(0, 1fr)) 32px; }
+    .cols-mtodo > .full { grid-column: 1 / -1; }
+    .audio-row { grid-template-columns: 1fr auto 32px; }
+    .audio-row audio { grid-column: 1 / -1; grid-row: 2; }
+  }
 
   /* 活动页头 */
   .board { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: grid; gap: 10px; }
@@ -286,6 +319,8 @@ const hm = (m) => { m = ((Math.round(m) % 1440) + 1440) % 1440; return String(Ma
 const money = (n) => '¥' + (Math.round(n * 100) / 100).toLocaleString('zh-CN');
 const CN = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二', '十三', '十四', '十五', '十六'];
 const clone = (o) => JSON.parse(JSON.stringify(o));
+// 按本地时区取日期，避免在中国（UTC+8）凌晨前后差一天
+const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 function toast(msg) {
   const t = $('#toast');
@@ -588,7 +623,7 @@ function samplePlan() {
 function nextSaturday() {
   const d = new Date();
   d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7 || 7) + 7);
-  return d.toISOString().slice(0, 10);
+  return ymd(d);
 }
 
 /* ---------- 自动生成 ---------- */
@@ -663,7 +698,7 @@ function recalcDue(p) {
     if (p.date && t.before !== '' && t.before != null) {
       const d = new Date(p.date + 'T00:00:00');
       d.setDate(d.getDate() - num(t.before));
-      t.due = d.toISOString().slice(0, 10);
+      t.due = ymd(d);
     }
   });
 }
@@ -736,7 +771,7 @@ const SAVE_TEXT = { local: IN_CLAUDE ? '仅保存在本设备' : '已保存在�
 function touch(p) {
   if (p.sample) delete p.sample;
   p.updatedAt = new Date().toISOString();
-  writeLocal();
+  if (p.kind === 'meeting') writeMeetings(); else writeLocal();
   if (!remote) return;
   setSave('saving');
   clearTimeout(timers[p.id]);
@@ -745,7 +780,7 @@ function touch(p) {
 
 async function flush(id) {
   if (writing[id]) { writing[id].again = true; return; }
-  const p = plans.find((x) => x.id === id);
+  const p = plans.find((x) => x.id === id) || meetings.find((x) => x.id === id);
   if (!p || !remote) return;
   writing[id] = { again: false };
   try {
@@ -776,8 +811,11 @@ async function connect() {
   const col = db.collection('data/users/' + uid);
   try {
     const snap = await col.get();
-    const saved = snap.docs.filter((d) => d.exists && d.data()?.type).map((d) => clone(d.data()));
+    const saved = snap.docs.filter((d) => d.exists && d.data()?.type && d.data()?.kind !== 'meeting').map((d) => clone(d.data()));
+    const savedMeetings = snap.docs.filter((d) => d.exists && d.data()?.kind === 'meeting').map((d) => clone(d.data()));
     remote = col;
+    if (savedMeetings.length) { meetings = savedMeetings; writeMeetings(); }
+    else for (const m of meetings) await col.doc(m.id).set(clone(m));
     if (saved.length) {
       const sample = plans.find((p) => p.sample);
       plans = saved.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
@@ -795,7 +833,7 @@ async function connect() {
 }
 
 /* ---------- 导出 ---------- */
-const MIME = { csv: 'text/csv', json: 'application/json', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
+const MIME = { mp4: 'audio/mp4', webm: 'audio/webm', csv: 'text/csv', json: 'application/json', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
 const mimeOf = (name) => MIME[name.split('.').pop()] || 'application/octet-stream';
 
 async function toBase64(data) {
@@ -1131,7 +1169,8 @@ const TABS = [['overview', '概览'], ['flow', '流程'], ['groups', '分组'], 
 function render() {
   const app = $('#app');
   const p = cur();
-  app.innerHTML = p ? planView(p) : homeView();
+  const m = curMeeting();
+  app.innerHTML = m ? meetingView(m) : p ? planView(p) : homeView();
   setSave(saveState);
 }
 
@@ -1175,6 +1214,8 @@ function homeView() {
   </section>`;
   return `${topBar(false)}
   ${help}
+  <section class="panel"><div class="panel-head"><h2>会议</h2><button class="btn primary small" data-mact="new">开始新会议</button></div>
+    <p class="hint">开会时打开：自动转文字、录音、标出发言人，会后自动整理纪要，导出 Word。</p>${meetingCards()}</section>
   <section class="panel"><h2>新建活动</h2>
     <button class="new-card paste-card" data-act="req-open"><b>粘贴要求，自动生成</b><span>把通知或要求粘贴进来，也可以选 Word、文本文件。会自动识别类型、时间、地点、人数、预算、分组和项目。</span></button>
     <p class="hint">或者选一种类型，会自动带上常用的项目、流程、物资和分工，再按你们的情况改。</p>
@@ -1231,7 +1272,7 @@ function overviewTab(p) {
     </div>
   </section>
   ${p.requirements ? `<section class="panel"><details><summary><h2 style="display:inline">原始要求</h2></summary><div style="margin-top:12px">${area('创建时粘贴的要求，留着方便对照', 'requirements', p.requirements)}</div></details></section>` : ''}
-  <section class="panel"><div class="row"><button class="btn small" data-act="dup">复制这个活动</button><span class="spacer"></span><button class="btn small danger" data-act="del">删除这个活动</button></div></section>`;
+  <section class="panel"><div class="row"><button class="btn small" data-mact="new" data-plan="${p.id}">为这个活动开会</button><button class="btn small" data-act="dup">复制这个活动</button><span class="spacer"></span><button class="btn small danger" data-act="del">删除这个活动</button></div></section>`;
 }
 
 function statsHtml(p) {
@@ -1405,7 +1446,7 @@ function budgetSumHtml(p) {
 }
 
 function tasksTab(p) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = ymd(new Date());
   const sorted = [...p.tasks].sort((a, b) => (a.done - b.done) || String(a.due || '9').localeCompare(String(b.due || '9')));
   return `<section class="panel"><div class="panel-head"><h2>分工</h2><button class="btn small" data-act="add" data-l="tasks">＋ 添加任务</button></div>
     <p class="hint">${p.date ? '截止日期按活动日期自动倒推，也可以手动改。' : '在「概览」填上活动日期，截止日期会自动倒推。'}</p>
@@ -1586,6 +1627,7 @@ function showParsed() {
 window.appBack = () => {
   if (!$('#modal').hidden) { closeModal(); return true; }
   if (!$('#big').hidden) { $('#bigClose')?.click(); return true; }
+  if (curMeetingId) { curMeetingId = null; render(); return true; }
   if (curId) { curId = null; render(); return true; }
   return false;
 };
@@ -1595,7 +1637,10 @@ document.addEventListener('click', async (e) => {
   if (!b) return;
   const act = b.dataset.act;
   const p = cur();
-  if (act === 'home') { curId = null; render(); scrollTo(0, 0); return; }
+  if (act === 'home') {
+    if (live.on && !(await confirmBox('会议还在记录。回到首页后记录会继续，确定吗？', '回到首页'))) return;
+    curId = null; curMeetingId = null; render(); scrollTo(0, 0); return;
+  }
   if (act === 'open') { curId = b.dataset.id; tab = 'overview'; render(); scrollTo(0, 0); return; }
   if (act === 'new') {
     const np = makePlan(b.dataset.type);
@@ -1618,8 +1663,8 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if (act === 'backup') {
-    const data = JSON.stringify({ app: 'planner', version: 1, plans: plans.filter((x) => !x.sample) }, null, 2);
-    offerFile(`活动策划备份-${new Date().toISOString().slice(0, 10)}.json`, data, data);
+    const data = JSON.stringify({ app: 'planner', version: 1, plans: plans.filter((x) => !x.sample), meetings }, null, 2);
+    offerFile(`活动策划备份-${ymd(new Date())}.json`, data, data);
     return;
   }
   if (!p) return;
@@ -1700,6 +1745,7 @@ function importBackup(file) {
       const list = (data.plans || []).filter((x) => x && x.id && TYPES[x.type]);
       if (!list.length) throw new Error();
       list.forEach((x) => { const i = plans.findIndex((y) => y.id === x.id); if (i >= 0) plans[i] = x; else plans.push(x); touch(x); });
+      (data.meetings || []).filter((x) => x && x.kind === 'meeting').forEach((x) => { const i = meetings.findIndex((y) => y.id === x.id); if (i >= 0) meetings[i] = x; else meetings.push(x); touch(x); });
       plans = plans.filter((x) => !x.sample);
       render();
       toast(`导入了 ${list.length} 个活动`);
@@ -1708,8 +1754,505 @@ function importBackup(file) {
   r.readAsText(file);
 }
 
+/* ---------- 会议：记录、转文字、录音、纪要 ---------- */
+const MLS_KEY = 'planner.meetings.v1';
+let meetings = [];
+let curMeetingId = null;
+let mtab = 'record';
+const curMeeting = () => meetings.find((m) => m.id === curMeetingId);
+const MTABS = [['info', '会议信息'], ['record', '记录'], ['minutes', '纪要']];
+
+function readMeetings() { try { return JSON.parse(localStorage.getItem(MLS_KEY) || '[]'); } catch { return []; } }
+function writeMeetings() { try { localStorage.setItem(MLS_KEY, JSON.stringify(meetings)); } catch { /* 存不了时仍保存到账号里 */ } }
+
+function makeMeeting(planId) {
+  const now = new Date();
+  const plan = plans.find((p) => p.id === planId);
+  return {
+    id: 'm' + newId(), kind: 'meeting',
+    title: plan ? `${plan.name.replace('（示例）', '')}筹备会` : `会议 ${now.getMonth() + 1}月${now.getDate()}日`,
+    date: ymd(now), time: hm(now.getHours() * 60 + now.getMinutes()),
+    location: '', attendees: '', recorder: '', agenda: '', planId: plan && !plan.sample ? plan.id : '',
+    lines: [], elapsed: 0, audio: [], summary: null, withTranscript: true,
+    createdAt: now.toISOString(), updatedAt: now.toISOString(),
+  };
+}
+
+const fmtClock = (ms) => {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  return (h ? h + ':' : '') + String(Math.floor((s % 3600) / 60)).padStart(h ? 2 : 1, '0') + ':' + String(s % 60).padStart(2, '0');
+};
+const attendeeList = (m) => parseRoster(m.attendees);
+
+/* 录音片段存在本机的 IndexedDB 里（文件太大，不能放进普通存储） */
+const audioDb = () => new Promise((resolve, reject) => {
+  const req = indexedDB.open('planner-audio', 1);
+  req.onupgradeneeded = () => req.result.createObjectStore('clips');
+  req.onsuccess = () => resolve(req.result);
+  req.onerror = () => reject(req.error);
+});
+async function audioPut(key, blob) { const db = await audioDb(); return new Promise((res, rej) => { const tx = db.transaction('clips', 'readwrite'); tx.objectStore('clips').put(blob, key); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); }
+async function audioGet(key) { const db = await audioDb(); return new Promise((res, rej) => { const r = db.transaction('clips').objectStore('clips').get(key); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
+async function audioDel(key) { const db = await audioDb(); return new Promise((res) => { const tx = db.transaction('clips', 'readwrite'); tx.objectStore('clips').delete(key); tx.oncomplete = res; tx.onerror = res; }); }
+
+/* 正在进行的记录：语音识别 + 录音 + 计时 */
+const live = { on: false, m: null, rec: null, recorder: null, stream: null, chunks: [], startedAt: 0, base: 0, timer: null, speaker: '', wake: null, mime: '', srOk: false };
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function liveElapsed() { return live.on ? live.base + (Date.now() - live.startedAt) : (curMeeting()?.elapsed || 0); }
+
+function addLine(m, text, { t, speaker } = {}) {
+  text = String(text || '').trim();
+  if (!text) return null;
+  const line = { id: newId(), t: t ?? liveElapsed(), at: new Date().toISOString(), speaker: speaker ?? live.speaker, text, tag: '' };
+  m.lines.push(line);
+  touch(m);
+  const list = $('#lines');
+  if (list && m.id === curMeetingId) {
+    list.querySelector('.empty')?.remove();
+    list.insertAdjacentHTML('beforeend', lineHtml(m, line));
+    autoGrow(list.lastElementChild.querySelector('.ltext'));
+    if (live.on) list.lastElementChild.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const count = $('#line-count');
+    if (count) count.textContent = m.lines.length;
+  }
+  return line;
+}
+
+/* 一段识别结果可能很长，按句号、问号、感叹号再分成几条 */
+function splitSentences(text) {
+  return String(text).split(/(?<=[。！？!?；;])/).map((s) => s.trim()).filter(Boolean);
+}
+
+function setLiveStatus(msg, bad) {
+  const el = $('#live-status');
+  if (el) { el.textContent = msg; el.classList.toggle('bad', Boolean(bad)); }
+}
+
+function startRecognition() {
+  if (!SR || !live.on) return;
+  const rec = new SR();
+  rec.lang = 'zh-CN';
+  rec.continuous = true;
+  rec.interimResults = true;
+  rec.onresult = (e) => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const r = e.results[i];
+      if (r.isFinal) splitSentences(r[0].transcript).forEach((s) => addLine(live.m, s));
+      else interim += r[0].transcript;
+    }
+    const el = $('#interim');
+    if (el) el.textContent = interim;
+    live.srOk = true;
+  };
+  rec.onerror = (e) => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      setLiveStatus('没有麦克风或语音识别权限。请在 iPhone「设置 → Safari → 麦克风」里允许，或者手动打字记录。', true);
+      live.rec = null;
+    } else if (e.error === 'network') {
+      setLiveStatus('语音识别需要联网。现在只录音，你也可以手动打字记录。', true);
+    } else if (e.error === 'audio-capture') {
+      setLiveStatus('麦克风被占用，转文字暂停。可以关掉「同时录音」再试。', true);
+    }
+  };
+  // iPhone 上识别过一会儿会自己停，会议还在进行就重新开始
+  rec.onend = () => { if (live.on && live.rec === rec) setTimeout(() => live.on && live.rec === rec && startRecognition(), 300); };
+  try { rec.start(); live.rec = rec; } catch { /* 上一次还没完全结束，onend 会重试 */ }
+}
+
+async function startLive(m, { transcribe, record }) {
+  if (live.on) return;
+  Object.assign(live, { on: true, m, startedAt: Date.now(), base: m.elapsed || 0, chunks: [], srOk: false, speaker: live.speaker || '' });
+  setLiveStatus(transcribe && SR ? '正在听…说话后几秒会出现文字' : '正在记录…');
+  if (record && navigator.mediaDevices?.getUserMedia && window.MediaRecorder) {
+    try {
+      live.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].find((t) => MediaRecorder.isTypeSupported?.(t)) || '';
+      live.recorder = new MediaRecorder(live.stream, mime ? { mimeType: mime } : undefined);
+      live.mime = live.recorder.mimeType || mime || 'audio/mp4';
+      live.recorder.ondataavailable = (e) => e.data.size && live.chunks.push(e.data);
+      live.recorder.start(10000);
+    } catch {
+      setLiveStatus('没能打开麦克风录音。可以继续转文字或手动记录。', true);
+      live.recorder = null;
+    }
+  }
+  if (transcribe) {
+    if (SR) startRecognition();
+    else setLiveStatus('这个浏览器不支持语音转文字。请用 iPhone 上的 Safari 打开，或者手动打字记录。', true);
+  }
+  try { live.wake = await navigator.wakeLock?.request('screen'); } catch { live.wake = null; }
+  live.timer = setInterval(() => {
+    const t = fmtClock(liveElapsed());
+    ['#live-clock', '#board-clock'].forEach((id) => { const el = $(id); if (el) el.textContent = t; });
+  }, 500);
+  renderMeeting();
+}
+
+async function stopLive() {
+  if (!live.on) return;
+  const m = live.m;
+  m.elapsed = liveElapsed();
+  live.on = false;
+  const rec = live.rec;
+  live.rec = null;
+  try { rec?.stop(); } catch { /* 已经停了 */ }
+  clearInterval(live.timer);
+  try { await live.wake?.release(); } catch { /* 屏幕常亮本来就没开 */ }
+  if (live.recorder && live.recorder.state !== 'inactive') {
+    await new Promise((res) => { live.recorder.onstop = res; live.recorder.stop(); });
+  }
+  live.stream?.getTracks().forEach((t) => t.stop());
+  if (live.chunks.length) {
+    const blob = new Blob(live.chunks, { type: live.mime });
+    const key = `${m.id}:${Date.now()}`;
+    try {
+      await audioPut(key, blob);
+      m.audio.push({ key, mime: live.mime, size: blob.size, at: new Date().toISOString() });
+    } catch { toast('录音没能保存，手机空间可能不够'); }
+  }
+  Object.assign(live, { recorder: null, stream: null, chunks: [], m: null });
+  m.summary = extractSummary(m);
+  touch(m);
+  mtab = 'minutes';
+  renderMeeting();
+  toast('记录已停止，纪要已自动整理');
+}
+
+/* ---------- 自动提取：决定、待办、问题 ---------- */
+const RE_DECISION = /(决定|确定|定下来|就这么定|就这样定|通过|同意|定为|定在|最终|统一|拍板)/;
+const RE_TODO = /(负责|跟进|落实|准备|安排|联系|提交|完成|整理|采购|买好|发给|发到|做好|搞定|对接|确认一下|写好|打印|借|订)/;
+const RE_NEED = /(需要|要|得|必须|麻烦|请|记得)/;
+const RE_ISSUE = /(问题|风险|担心|困难|不够|缺少|缺|来不及|冲突|不确定|还没有|还没定|怎么办)/;
+const WEEK = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 日: 0, 天: 0 };
+
+function parseDue(text, baseISO) {
+  const base = new Date((baseISO || ymd(new Date())) + 'T00:00:00');
+  const iso = ymd;
+  const add = (n) => { const d = new Date(base); d.setDate(d.getDate() + n); return iso(d); };
+  let m;
+  if (/今天|今晚/.test(text)) return iso(base);
+  if (/明天|明晚/.test(text)) return add(1);
+  if (/后天/.test(text)) return add(2);
+  if ((m = /(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]/.exec(text))) {
+    const d = new Date(base.getFullYear(), +m[1] - 1, +m[2]);
+    if (d < base) d.setFullYear(d.getFullYear() + 1);
+    return iso(d);
+  }
+  if ((m = /(下)?(?:周|星期|礼拜)([一二三四五六日天])/.exec(text))) {
+    const want = WEEK[m[2]];
+    const day = base.getDay();
+    const diff = m[1] ? ((8 - day) % 7 || 7) + ((want + 6) % 7) : (want - day + 7) % 7;
+    return add(diff);
+  }
+  if ((m = /(?<![月\d])(\d{1,2})\s*[号日](?!期)/.exec(text))) {
+    const d = new Date(base.getFullYear(), base.getMonth(), +m[1]);
+    if (d < base) d.setMonth(d.getMonth() + 1);
+    return iso(d);
+  }
+  return '';
+}
+
+function findOwner(text, speaker, names) {
+  if (/(我来|我负责|我去|我跟进|交给我|我这边)/.test(text) && speaker) return speaker;
+  const hit = names.filter((n) => text.includes(n)).sort((a, b) => text.indexOf(a) - text.indexOf(b))[0];
+  if (hit) return hit;
+  const m = /(?:由|让|请)?([一-龥]{2,3})(?:来|去)?(?:负责|跟进|对接)/.exec(text);
+  return m && !/^(我们|大家|你们|他们|这个|那个|谁来|一起)$/.test(m[1]) ? m[1] : '';
+}
+
+function extractSummary(m) {
+  const names = attendeeList(m);
+  const out = { decisions: [], todos: [], issues: [] };
+  const seen = new Set();
+  for (const l of m.lines) {
+    const text = l.text.replace(/^(嗯+|那个|就是|然后|好的?|对)[，,\s]*/, '').trim();
+    if (!text || seen.has(text)) continue;
+    let kind = l.tag;
+    if (!kind) {
+      const owner = findOwner(text, l.speaker, names);
+      const due = parseDue(text, m.date);
+      if (RE_TODO.test(text) && (owner || due || RE_NEED.test(text))) kind = 'todo';
+      else if (RE_DECISION.test(text)) kind = 'decision';
+      else if (RE_ISSUE.test(text)) kind = 'issue';
+    }
+    if (!kind) continue;
+    seen.add(text);
+    if (kind === 'todo') out.todos.push({ id: newId(), task: text, owner: findOwner(text, l.speaker, names), due: parseDue(text, m.date) });
+    if (kind === 'decision') out.decisions.push(text);
+    if (kind === 'issue') out.issues.push(text);
+  }
+  return out;
+}
+
+/* ---------- 导出 ---------- */
+function minutesDoc(m) {
+  const s = m.summary || extractSummary(m);
+  const blocks = [];
+  let n = 0;
+  const H = (t) => blocks.push({ h: `${CN[n++]}、${t}` });
+  const P = (t) => String(t || '').split('\n').filter((x) => x.trim()).forEach((x) => blocks.push({ p: x }));
+  const dateText = m.date ? new Date(m.date + 'T00:00:00').toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }) : '';
+  H('会议信息');
+  P(`会议时间：${dateText} ${m.time || ''}${m.elapsed ? `（时长约 ${Math.max(1, Math.round(m.elapsed / 60000))} 分钟）` : ''}`);
+  P(`会议地点：${m.location || '—'}`);
+  P(`参会人员：${attendeeList(m).join('、') || '—'}`);
+  if (m.recorder) P(`记录人：${m.recorder}`);
+  const plan = plans.find((p) => p.id === m.planId);
+  if (plan) P(`关联活动：${plan.name}`);
+  if (String(m.agenda || '').trim()) { H('会议议程'); P(m.agenda); }
+  H('决定事项');
+  if (s.decisions.length) s.decisions.forEach((d, i) => blocks.push({ p: `${i + 1}. ${d}` })); else P('无');
+  H('待办事项');
+  if (s.todos.length) blocks.push({ table: [['序号', '事项', '负责人', '截止日期'], ...s.todos.map((t, i) => [i + 1, t.task, t.owner || '待定', t.due || '待定'])] }); else P('无');
+  if (s.issues.length) { H('问题与风险'); s.issues.forEach((d, i) => blocks.push({ p: `${i + 1}. ${d}` })); }
+  if (m.withTranscript && m.lines.length) {
+    H('会议记录');
+    blocks.push({ table: [['时间', '发言人', '内容'], ...m.lines.map((l) => [fmtClock(l.t), l.speaker || '—', l.text])] });
+  }
+  return { title: `${m.title}会议纪要`, blocks, footer: [m.recorder ? `记录人：${m.recorder}` : '', m.date].filter(Boolean) };
+}
+
+function claudePrompt(m) {
+  return `请根据下面的会议记录，整理一份正式的会议纪要，包括：会议基本信息、主要讨论内容、决定事项、待办事项（写清负责人和截止时间）、遗留问题。语言简洁正式，用「一、（一）、1.」分层级。
+
+会议：${m.title}
+时间：${m.date} ${m.time || ''}
+地点：${m.location || '未填'}
+参会人：${attendeeList(m).join('、') || '未填'}
+${String(m.agenda || '').trim() ? `议程：\n${m.agenda}\n` : ''}
+会议记录（时间 发言人：内容）：
+${m.lines.map((l) => `[${fmtClock(l.t)}] ${l.speaker || '未知'}：${l.text}`).join('\n')}`;
+}
+
+/* ---------- 界面 ---------- */
+function meetingCards() {
+  if (!meetings.length) return '<div class="empty">还没有会议。点「开始新会议」，开会时打开就能记录。</div>';
+  return `<div class="plans">${[...meetings].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).map((m) => {
+    const plan = plans.find((p) => p.id === m.planId);
+    return `<button class="plan-card" data-mact="open" data-id="${m.id}">
+      <div class="row"><span class="tag mtag">会议</span>${plan ? `<span class="meta">${esc(plan.name)}</span>` : ''}</div>
+      <h3>${esc(m.title || '未命名会议')}</h3>
+      <div class="meta">${esc(m.date)} ${esc(m.time || '')} · ${m.lines.length} 条记录${m.audio.length ? ' · 有录音' : ''}</div>
+    </button>`;
+  }).join('')}</div>`;
+}
+
+function meetingView(m) {
+  const i = MTABS.findIndex(([k]) => k === mtab);
+  const body = { info: meetingInfoTab, record: meetingRecordTab, minutes: meetingMinutesTab }[mtab](m);
+  return `${topBar(true)}
+  <section class="board">
+    <div class="row"><span class="tag mtag">会议</span><span class="spacer"></span><button class="btn primary small" data-mact="docx">下载 Word 纪要</button></div>
+    <input class="title-input" id="mf-title" data-mf="title" value="${esc(m.title)}" aria-label="会议名称">
+    <div class="facts"><span>${esc(m.date)} ${esc(m.time || '')}</span><span>${esc(m.location || '地点未填')}</span><span>${attendeeList(m).length} 人</span><span class="mono" id="board-clock">${fmtClock(m.elapsed || 0)}</span></div>
+    <nav class="tabs" role="tablist">${MTABS.map(([k, l], n) => `<button class="tab" role="tab" aria-selected="${mtab === k}" data-mact="tab" data-tab="${k}"><span class="tabno">${n + 1}</span>${l}</button>`).join('')}</nav>
+    <p class="intro"><b>第 ${i + 1} 步，共 3 步</b>${['填会议名称、参会人和议程。参会人会变成「记录」页的发言人按钮。', '开会时点「开始记录」：自动转文字、录音，谁说话就点谁的名字。', '会后检查自动整理的决定和待办，再下载 Word 纪要。'][i]}</p>
+  </section>
+  ${body}
+  <nav class="stepnav">${i > 0 ? `<button class="btn" data-mact="tab" data-tab="${MTABS[i - 1][0]}">← 上一步：${MTABS[i - 1][1]}</button>` : '<span></span>'}${i < 2 ? `<button class="btn primary" data-mact="tab" data-tab="${MTABS[i + 1][0]}">下一步：${MTABS[i + 1][1]} →</button>` : '<button class="btn primary" data-mact="docx">下载 Word 纪要</button>'}</nav>`;
+}
+
+function mField(label, f, value, type = 'text', extra = '') {
+  return `<label class="f ${extra}"><span>${label}</span><input type="${type}" id="mf-${f}" data-mf="${f}" value="${esc(value)}"></label>`;
+}
+
+function meetingInfoTab(m) {
+  const realPlans = plans.filter((p) => !p.sample);
+  return `<section class="panel"><h2>会议信息</h2><div class="form">
+    ${mField('日期', 'date', m.date, 'date')}${mField('开始时间', 'time', m.time, 'time')}${mField('地点', 'location', m.location)}${mField('记录人', 'recorder', m.recorder)}
+    <label class="f wide"><span>参会人（用空格或逗号分开，会变成发言人按钮）</span><textarea id="mf-attendees" data-mf="attendees" style="min-height:64px" placeholder="例如：张三 李四 王五">${esc(m.attendees)}</textarea></label>
+    <label class="f wide"><span>议程（一行一项）</span><textarea id="mf-agenda" data-mf="agenda" placeholder="1. 确定运动会项目&#10;2. 分配筹备任务">${esc(m.agenda)}</textarea></label>
+    <label class="f wide"><span>关联活动（会上的待办可以一键加进这个活动的分工）</span><select id="mf-planId" data-mf="planId"><option value="">不关联</option>${realPlans.map((p) => `<option value="${p.id}" ${m.planId === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+  </div></section>
+  <section class="panel"><div class="row"><span class="spacer"></span><button class="btn small danger" data-mact="del">删除这个会议</button></div></section>`;
+}
+
+function lineHtml(m, l) {
+  const names = attendeeList(m);
+  const opts = ['', ...new Set([...names, l.speaker].filter(Boolean))];
+  const tags = [['decision', '决定'], ['todo', '待办'], ['issue', '问题']];
+  return `<div class="line ${l.tag ? 'tag-' + l.tag : ''}" id="ln-${l.id}">
+    <span class="lt mono">${fmtClock(l.t)}</span>
+    <select class="ls" data-ml="${l.id}" data-k="speaker" aria-label="发言人">${opts.map((n) => `<option value="${esc(n)}" ${l.speaker === n ? 'selected' : ''}>${n ? esc(n) : '发言人'}</option>`).join('')}</select>
+    <textarea class="ltext" rows="1" data-ml="${l.id}" data-k="text" aria-label="内容">${esc(l.text)}</textarea>
+    <div class="ltags">${tags.map(([k, t]) => `<button class="chip ${l.tag === k ? 'on' : ''}" data-mact="tag" data-id="${l.id}" data-tag="${k}">${t}</button>`).join('')}<button class="x" data-mact="rmline" data-id="${l.id}" aria-label="删除">×</button></div>
+  </div>`;
+}
+
+function meetingRecordTab(m) {
+  const names = attendeeList(m);
+  const prefs = recordPrefs();
+  return `<section class="panel live ${live.on ? 'on' : ''}">
+    <div class="live-head">
+      <div><div class="live-clock mono" id="live-clock">${fmtClock(liveElapsed())}</div><p class="hint" id="live-status">${live.on ? '正在记录…' : m.lines.length ? '已暂停。点「继续记录」接着记。' : '准备好了就点开始。开会时屏幕会保持常亮。'}</p></div>
+      ${live.on ? '<button class="btn rec-btn stop" data-mact="stop">■ 停止记录</button>' : `<button class="btn rec-btn" data-mact="start">● ${m.lines.length ? '继续记录' : '开始记录'}</button>`}
+    </div>
+    ${live.on ? '' : `<div class="row"><label class="inc"><input type="checkbox" id="pref-sr" ${prefs.sr ? 'checked' : ''}> 自动转文字</label><label class="inc"><input type="checkbox" id="pref-rec" ${prefs.rec ? 'checked' : ''}> 同时录音</label></div>`}
+    <div><p class="hint">现在说话的人（谁开始说话就点谁）：</p>
+      <div class="row speakers">${['', ...names].map((n) => `<button class="chip ${live.speaker === n ? 'on' : ''}" data-mact="speaker" data-name="${esc(n)}">${n ? esc(n) : '未指定'}</button>`).join('')}${names.length ? '' : '<span class="hint">先在「会议信息」里填参会人</span>'}</div>
+    </div>
+    <p class="interim" id="interim"></p>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>记录</h2><span class="hint"><span id="line-count">${m.lines.length}</span> 条 · 点「决定」「待办」「问题」可以手动标记</span></div>
+    <div class="lines" id="lines">${m.lines.map((l) => lineHtml(m, l)).join('') || '<div class="empty">开始记录后，说的话会一条条出现在这里。也可以在下面手动输入。</div>'}</div>
+    <form class="row" id="manual-form"><input type="text" id="manual-text" placeholder="手动记一条，按回车添加" style="flex:1;min-width:0"><button class="btn" type="submit">添加</button></form>
+  </section>
+  ${m.audio.length ? `<section class="panel"><h2>录音</h2><div class="list" id="audio-list">${m.audio.map((a, k) => `<div class="item audio-row"><span>第 ${k + 1} 段 · ${(a.size / 1024 / 1024).toFixed(1)} MB</span><audio controls preload="none" data-akey="${esc(a.key)}"></audio><button class="btn small" data-mact="saveaudio" data-k="${k}">保存录音</button><button class="x" data-mact="rmaudio" data-k="${k}" aria-label="删除录音">×</button></div>`).join('')}</div></section>` : ''}`;
+}
+
+function meetingMinutesTab(m) {
+  const s = m.summary || (m.summary = extractSummary(m));
+  const plan = plans.find((p) => p.id === m.planId);
+  return `<section class="panel"><div class="panel-head"><h2>会议纪要</h2><button class="btn small" data-mact="reextract">重新自动整理</button></div>
+    <p class="hint">根据记录里的关键词自动整理，可能有漏的或多的，请检查修改。想要更好的总结，点下面的「复制给 Claude」。</p>
+  </section>
+  <section class="panel"><h3>决定事项（一行一条）</h3><textarea id="ms-decisions" data-ms="decisions">${esc(s.decisions.join('\n'))}</textarea></section>
+  <section class="panel"><div class="panel-head"><h3>待办事项</h3><button class="btn small" data-mact="addtodo">＋ 添加</button></div>
+    ${colhead('cols-task', ['', '事项', '负责人', '截止', ''])}
+    <div class="list">${s.todos.map((t) => `<div class="item cols-mtodo">
+      <input class="full" id="mt-${t.id}-task" data-mt="${t.id}" data-k="task" value="${esc(t.task)}" aria-label="事项">
+      <input id="mt-${t.id}-owner" data-mt="${t.id}" data-k="owner" value="${esc(t.owner)}" placeholder="负责人" aria-label="负责人">
+      <input type="date" id="mt-${t.id}-due" data-mt="${t.id}" data-k="due" value="${esc(t.due)}" aria-label="截止日期">
+      <button class="x" data-mact="rmtodo" data-id="${t.id}" aria-label="删除">×</button></div>`).join('') || '<div class="empty">没有找到待办。可以在「记录」页给某条点「待办」，或者在这里添加。</div>'}</div>
+    ${s.todos.length ? `<div class="row">${plan ? `<button class="btn" data-mact="totasks">把待办加进「${esc(plan.name)}」的分工</button>` : '<span class="hint">在「会议信息」里关联活动后，可以把待办一键加进活动分工。</span>'}</div>` : ''}
+  </section>
+  <section class="panel"><h3>问题与风险（一行一条）</h3><textarea id="ms-issues" data-ms="issues">${esc(s.issues.join('\n'))}</textarea></section>
+  <section class="panel"><div class="panel-head"><h2>导出</h2></div>
+    <label class="inc"><input type="checkbox" id="mf-withTranscript" data-mf="withTranscript" ${m.withTranscript ? 'checked' : ''}> 纪要后面附上完整的会议记录（带时间和发言人）</label>
+    <div class="row"><button class="btn primary" data-mact="docx">下载 Word 纪要</button><button class="btn" data-mact="claude">复制给 Claude 整理</button><button class="btn" data-mact="copytext">复制全文</button></div>
+    <p class="hint">「复制给 Claude 整理」会复制整场记录和一段说明，粘贴到和 Claude 的对话里，就能得到一份正式纪要。</p>
+  </section>`;
+}
+
+const PREF_KEY = 'planner.recordPrefs';
+function recordPrefs() { try { return { sr: true, rec: true, ...JSON.parse(localStorage.getItem(PREF_KEY) || '{}') }; } catch { return { sr: true, rec: true }; } }
+function saveRecordPrefs(p) { try { localStorage.setItem(PREF_KEY, JSON.stringify(p)); } catch { /* 只是偏好，存不了没关系 */ } }
+
+function renderMeeting() {
+  if (!curMeeting()) return render();
+  render();
+  // 录音按需加载，播放时才从本机读出来
+  document.querySelectorAll('audio[data-akey]').forEach((el) => {
+    el.addEventListener('play', async function load() {
+      if (el.src) return;
+      el.removeEventListener('play', load);
+      const blob = await audioGet(el.dataset.akey).catch(() => null);
+      if (blob) { el.src = URL.createObjectURL(blob); el.play(); } else toast('这段录音找不到了');
+    }, { once: false });
+  });
+  document.querySelectorAll('.ltext').forEach(autoGrow);
+}
+function autoGrow(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
+
+document.addEventListener('input', (e) => {
+  const m = curMeeting();
+  if (!m) return;
+  const el = e.target;
+  if (el.dataset.mf) {
+    m[el.dataset.mf] = el.type === 'checkbox' ? el.checked : el.value;
+  } else if (el.dataset.ml) {
+    const l = m.lines.find((x) => x.id === el.dataset.ml);
+    if (l) l[el.dataset.k] = el.value;
+    if (el.classList.contains('ltext')) autoGrow(el);
+  } else if (el.dataset.ms) {
+    m.summary[el.dataset.ms] = el.value.split('\n').map((x) => x.trim()).filter(Boolean);
+  } else if (el.dataset.mt) {
+    const t = m.summary.todos.find((x) => x.id === el.dataset.mt);
+    if (t) t[el.dataset.k] = el.value;
+  } else if (el.id === 'pref-sr' || el.id === 'pref-rec') {
+    saveRecordPrefs({ sr: $('#pref-sr').checked, rec: $('#pref-rec').checked });
+    return;
+  } else return;
+  touch(m);
+});
+
+document.addEventListener('submit', (e) => {
+  if (e.target.id !== 'manual-form') return;
+  e.preventDefault();
+  const m = curMeeting();
+  const input = $('#manual-text');
+  if (m && addLine(m, input.value)) input.value = '';
+  input.focus();
+});
+
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-mact]');
+  if (!b) return;
+  const act = b.dataset.mact;
+  if (act === 'new') {
+    const m = makeMeeting(b.dataset.plan || '');
+    meetings.push(m); curMeetingId = m.id; curId = null; mtab = 'info'; touch(m); renderMeeting(); scrollTo(0, 0);
+    return;
+  }
+  if (act === 'open') { curMeetingId = b.dataset.id; curId = null; mtab = curMeeting().lines.length ? 'minutes' : 'record'; renderMeeting(); scrollTo(0, 0); return; }
+  const m = curMeeting();
+  if (!m) return;
+  if (act === 'tab') { if (live.on && b.dataset.tab !== 'record' && !(await confirmBox('正在记录。离开这一页记录会继续，确定吗？', '继续'))) return; mtab = b.dataset.tab; renderMeeting(); if (b.closest('.stepnav')) scrollTo(0, 0); return; }
+  if (act === 'start') { const prefs = { sr: $('#pref-sr')?.checked ?? true, rec: $('#pref-rec')?.checked ?? true }; saveRecordPrefs(prefs); startLive(m, { transcribe: prefs.sr, record: prefs.rec }); return; }
+  if (act === 'stop') { stopLive(); return; }
+  if (act === 'speaker') {
+    live.speaker = b.dataset.name;
+    document.querySelectorAll('.speakers .chip').forEach((c) => c.classList.toggle('on', c.dataset.name === live.speaker));
+    return;
+  }
+  if (act === 'tag') {
+    const l = m.lines.find((x) => x.id === b.dataset.id);
+    l.tag = l.tag === b.dataset.tag ? '' : b.dataset.tag;
+    const row = document.getElementById('ln-' + l.id);
+    row.className = 'line ' + (l.tag ? 'tag-' + l.tag : '');
+    row.querySelectorAll('.ltags .chip').forEach((c) => c.classList.toggle('on', c.dataset.tag === l.tag));
+    touch(m); return;
+  }
+  if (act === 'rmline') { m.lines = m.lines.filter((x) => x.id !== b.dataset.id); document.getElementById('ln-' + b.dataset.id)?.remove(); touch(m); return; }
+  if (act === 'reextract') {
+    if (await confirmBox('重新整理会覆盖你在纪要里做的修改，确定吗？', '重新整理')) { m.summary = extractSummary(m); touch(m); renderMeeting(); toast('已重新整理'); }
+    return;
+  }
+  if (act === 'addtodo') { m.summary.todos.push({ id: newId(), task: '', owner: '', due: '' }); touch(m); renderMeeting(); return; }
+  if (act === 'rmtodo') { m.summary.todos = m.summary.todos.filter((t) => t.id !== b.dataset.id); touch(m); renderMeeting(); return; }
+  if (act === 'totasks') {
+    const plan = plans.find((p) => p.id === m.planId);
+    const todos = m.summary.todos.filter((t) => t.task.trim());
+    todos.forEach((t) => plan.tasks.push({ id: newId(), task: t.task, owner: t.owner, before: '', due: t.due, done: false }));
+    touch(plan); toast(`已把 ${todos.length} 项待办加进「${plan.name}」`); return;
+  }
+  if (act === 'docx') {
+    try { const blob = await proposalDocx(minutesDoc(m)); offerFile(`${m.title}会议纪要.docx`, blob); }
+    catch { toast('Word 生成失败，可以先用「复制全文」'); }
+    return;
+  }
+  if (act === 'claude') { copyText(claudePrompt(m)); return; }
+  if (act === 'copytext') { copyText(proposalText(minutesDoc(m))); return; }
+  if (act === 'saveaudio') {
+    const a = m.audio[+b.dataset.k];
+    const blob = await audioGet(a.key).catch(() => null);
+    if (!blob) { toast('这段录音找不到了'); return; }
+    offerFile(`${m.title}-录音${+b.dataset.k + 1}.${a.mime.includes('webm') ? 'webm' : 'mp4'}`, blob);
+    return;
+  }
+  if (act === 'rmaudio') {
+    if (!(await confirmBox('删除这段录音？删除后不能恢复。', '删除'))) return;
+    const [a] = m.audio.splice(+b.dataset.k, 1);
+    await audioDel(a.key); touch(m); renderMeeting(); return;
+  }
+  if (act === 'del') {
+    if (!(await confirmBox(`删除「${m.title}」？记录和录音都会删除，不能恢复。`, '删除'))) return;
+    if (live.on) await stopLive();
+    for (const a of m.audio) await audioDel(a.key);
+    meetings = meetings.filter((x) => x.id !== m.id);
+    writeMeetings();
+    if (remote) { try { await remote.doc(m.id).delete(); } catch { setSave('error'); } }
+    curMeetingId = null; render(); toast('已删除');
+  }
+});
+
 /* ---------- 启动 ---------- */
 plans = readLocal() || [];
+meetings = readMeetings();
 if (!plans.length) plans = [samplePlan()];
 render();
 connect();
