@@ -2096,18 +2096,6 @@ function minutesDoc(m) {
   return { title: `${m.title}会议纪要`, blocks, footer: [m.recorder ? `记录人：${m.recorder}` : '', m.date].filter(Boolean) };
 }
 
-function claudePrompt(m) {
-  return `请根据下面的会议记录，整理一份正式的会议纪要，包括：会议基本信息、主要讨论内容、决定事项、待办事项（写清负责人和截止时间）、遗留问题。语言简洁正式，用「一、（一）、1.」分层级。
-
-会议：${m.title}
-时间：${m.date} ${m.time || ''}
-地点：${m.location || '未填'}
-参会人：${attendeeList(m).join('、') || '未填'}
-${String(m.agenda || '').trim() ? `议程：\n${m.agenda}\n` : ''}
-会议记录（时间 发言人：内容）：
-${m.lines.map((l) => `[${fmtClock(l.t)}] ${l.speaker || '未知'}：${l.text}`).join('\n')}`;
-}
-
 /* ---------- 界面 ---------- */
 function meetingCards() {
   if (!meetings.length) return '<div class="empty">还没有会议。点「开始新会议」，开会时打开就能记录。</div>';
@@ -2189,7 +2177,7 @@ function meetingMinutesTab(m) {
   const s = m.summary || (m.summary = extractSummary(m));
   const plan = plans.find((p) => p.id === m.planId);
   return `<section class="panel"><div class="panel-head"><h2>会议纪要</h2><button class="btn small" data-mact="reextract">重新自动整理</button></div>
-    <p class="hint">根据记录里的关键词自动整理，可能有漏的或多的，请检查修改。想要更好的总结，点下面的「复制给 Claude」。</p>
+    <p class="hint">根据记录里的关键词自动整理，可能有漏的或多的，请检查修改。</p>
   </section>
   <section class="panel"><h3>决定事项（一行一条）</h3><textarea id="ms-decisions" data-ms="decisions">${esc(s.decisions.join('\n'))}</textarea></section>
   <section class="panel"><div class="panel-head"><h3>待办事项</h3><button class="btn small" data-mact="addtodo">＋ 添加</button></div>
@@ -2204,8 +2192,7 @@ function meetingMinutesTab(m) {
   <section class="panel"><h3>问题与风险（一行一条）</h3><textarea id="ms-issues" data-ms="issues">${esc(s.issues.join('\n'))}</textarea></section>
   <section class="panel"><div class="panel-head"><h2>导出</h2></div>
     <label class="inc"><input type="checkbox" id="mf-withTranscript" data-mf="withTranscript" ${m.withTranscript ? 'checked' : ''}> 纪要后面附上完整的会议记录（带时间和发言人）</label>
-    <div class="row"><button class="btn primary" data-mact="docx">下载 Word 纪要</button><button class="btn" data-mact="claude">复制给 Claude 整理</button><button class="btn" data-mact="copytext">复制全文</button></div>
-    <p class="hint">「复制给 Claude 整理」会复制整场记录和一段说明，粘贴到和 Claude 的对话里，就能得到一份正式纪要。</p>
+    <div class="row"><button class="btn primary" data-mact="docx">下载 Word 纪要</button><button class="btn" data-mact="copytext">复制全文</button></div>
   </section>`;
 }
 
@@ -2306,7 +2293,6 @@ document.addEventListener('click', async (e) => {
     catch { toast('Word 生成失败，可以先用「复制全文」'); }
     return;
   }
-  if (act === 'claude') { copyText(claudePrompt(m)); return; }
   if (act === 'copytext') { copyText(proposalText(minutesDoc(m))); return; }
   if (act === 'saveaudio') {
     const a = m.audio[+b.dataset.k];
