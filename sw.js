@@ -1,6 +1,6 @@
 // 离线缓存：联网时页面总是取最新版，断网时才用缓存。版本号变化时旧缓存自动清掉。
-const CACHE = 'planner-1d6a31ddf8';
-const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png', './wechat-qr.png'];
+const CACHE = 'planner-1384a27405';
+const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png', './wechat-qr.png', './pptxgen.bundle.js'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
 });
