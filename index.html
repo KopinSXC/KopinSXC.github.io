@@ -157,6 +157,46 @@
   .res { display: grid; gap: 2px; text-align: left; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--paper); }
   .res small { color: var(--muted); font-size: 13px; }
   .center { text-align: center; }
+  .themes { gap: 6px; }
+  .theme { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px 4px 4px; background: var(--paper); font-size: 13px; }
+  .theme i { width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, var(--c) 62%, var(--a) 62%); }
+  .theme.on { border-color: var(--field); box-shadow: 0 0 0 1px var(--field); font-weight: 600; }
+  .slide-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .slide-fields { display: grid; gap: 10px; min-width: 0; }
+  .slide-fields textarea { min-height: 88px; }
+  .slide-card .x:disabled { opacity: .3; }
+  @media (max-width: 680px) { .slide-grid { grid-template-columns: 1fr; } }
+  .pv-wrap { container-type: inline-size; min-width: 0; }
+  .pv { aspect-ratio: 16 / 9; position: relative; overflow: hidden; background: #fff; color: var(--t); border: 1px solid #d6d6d6; border-radius: 6px; font-family: var(--font-body); line-height: 1.35; }
+  .pv-top { position: absolute; inset: 0 0 auto; height: 1.6%; background: var(--m); }
+  .pv-t { position: absolute; left: 4.5%; right: 4%; top: 5.5%; display: flex; gap: 1.2cqw; align-items: center; font-size: 3.6cqw; font-weight: 700; white-space: nowrap; overflow: hidden; }
+  .pv-t i { flex: none; width: .7cqw; height: 3.8cqw; background: var(--m); }
+  .pv-body { position: absolute; left: 6%; right: 4.5%; top: 19%; bottom: 6%; overflow: hidden; font-size: 2.3cqw; }
+  .pv ul { margin: 0; padding-left: 1.2em; } .pv li { margin-bottom: .45em; }
+  .pv-cover, .pv-end, .pv-sec { position: absolute; inset: 0; display: flex; flex-direction: column; color: #fff; background: var(--m); }
+  .pv-cover { padding: 26% 9% 0; gap: 1.6cqw; }
+  .pv-cover i { position: absolute; left: 6.8%; top: 29%; width: .9cqw; height: 14cqw; background: var(--a); }
+  .pv-cover b { font-size: 5.6cqw; line-height: 1.15; }
+  .pv-cover span { font-size: 2.8cqw; opacity: .9; }
+  .pv-cover em { position: absolute; left: 9%; bottom: 10%; font-style: normal; font-size: 2cqw; }
+  .pv-end, .pv-sec { align-items: center; justify-content: center; text-align: center; gap: 1.6cqw; }
+  .pv-end b { font-size: 6cqw; } .pv-end span { font-size: 2.6cqw; opacity: .9; }
+  .pv-sec { background: var(--s); color: var(--m); } .pv-sec b { font-size: 5cqw; } .pv-sec span { font-size: 2.4cqw; color: var(--mu); }
+  .pv-two { display: grid; grid-template-columns: 1fr 1fr; gap: 6%; height: 100%; }
+  .pv-two h6 { margin: 0 0 .6em; font-size: 2.6cqw; color: var(--m); }
+  .pv-img { display: grid; grid-template-columns: 56% 1fr; gap: 4%; height: 100%; }
+  .pv-pic { background: var(--s); display: grid; place-items: center; color: var(--mu); overflow: hidden; }
+  .pv-pic img { width: 100%; height: 100%; object-fit: contain; }
+  .pv table { border-collapse: collapse; width: 100%; font-size: 1.6cqw; }
+  .pv th, .pv td { border: 1px solid var(--l); padding: .3em .5em; white-space: normal; text-align: left; color: var(--t); }
+  .pv th { background: var(--s); text-align: center; }
+  .pv-more { font-size: 1.6cqw; color: var(--mu); margin-top: .5em; }
+  .pv-chart { display: grid; gap: 1.4cqw; }
+  .pv-chart div { display: grid; grid-template-columns: 22% 1fr 12%; gap: 2%; align-items: center; }
+  .pv-chart i { height: 2.6cqw; background: var(--m); } .pv-chart em { font-style: normal; font-size: 1.8cqw; }
+  .pv-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3cqw 2.5%; padding-top: 3%; }
+  .pv-nums div { background: var(--s); border-radius: 1.2cqw; padding: 3cqw 2cqw; text-align: center; display: grid; gap: 1cqw; }
+  .pv-nums b { font-size: 4.4cqw; color: var(--m); } .pv-nums span { font-size: 1.9cqw; color: var(--mu); }
   .ppt-row { grid-template-columns: minmax(0, 1fr) auto; padding: 12px 14px; }
   .fb-link { display: flex; justify-content: flex-end; margin-top: -6px; }
   .linkbtn { border: 0; background: none; color: var(--muted); font-size: 13px; padding: 6px 4px; text-decoration: underline; text-underline-offset: 3px; }
@@ -831,7 +871,7 @@ const SAVE_TEXT = { local: IN_CLAUDE ? '仅保存在本设备' : '已保存在�
 function touch(p) {
   if (p.sample) delete p.sample;
   p.updatedAt = new Date().toISOString();
-  if (p.kind === 'meeting') writeMeetings(); else writeLocal();
+  if (p.kind === 'meeting') writeMeetings(); else if (p.kind === 'deck') writeDecks(); else writeLocal();
   if (!remote) return;
   setSave('saving');
   clearTimeout(timers[p.id]);
@@ -840,7 +880,7 @@ function touch(p) {
 
 async function flush(id) {
   if (writing[id]) { writing[id].again = true; return; }
-  const p = plans.find((x) => x.id === id) || meetings.find((x) => x.id === id);
+  const p = plans.find((x) => x.id === id) || meetings.find((x) => x.id === id) || decks.find((x) => x.id === id);
   if (!p || !remote) return;
   writing[id] = { again: false };
   try {
@@ -871,11 +911,14 @@ async function connect() {
   const col = db.collection('data/users/' + uid);
   try {
     const snap = await col.get();
-    const saved = snap.docs.filter((d) => d.exists && d.data()?.type && d.data()?.kind !== 'meeting').map((d) => clone(d.data()));
+    const saved = snap.docs.filter((d) => d.exists && d.data()?.type && !d.data()?.kind).map((d) => clone(d.data()));
     const savedMeetings = snap.docs.filter((d) => d.exists && d.data()?.kind === 'meeting').map((d) => clone(d.data()));
     remote = col;
     if (savedMeetings.length) { meetings = savedMeetings; writeMeetings(); }
     else for (const m of meetings) await col.doc(m.id).set(clone(m));
+    const savedDecks = snap.docs.filter((d) => d.exists && d.data()?.kind === 'deck').map((d) => clone(d.data()));
+    if (savedDecks.length) { decks = savedDecks; writeDecks(); }
+    else for (const dk of decks) await col.doc(dk.id).set(clone(dk));
     if (saved.length) {
       const sample = plans.find((p) => p.sample);
       plans = saved.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
@@ -1285,7 +1328,8 @@ function render() {
   const app = $('#app');
   const p = cur();
   const m = curMeeting();
-  app.innerHTML = m ? meetingView(m) : p ? planView(p) : homeView();
+  const dk = curDeck();
+  app.innerHTML = dk ? deckView(dk) : m ? meetingView(m) : p ? planView(p) : homeView();
   setSave(saveState);
 }
 
@@ -1310,8 +1354,8 @@ function hideHelp() { try { localStorage.setItem('planner.helpHidden', '1'); } c
 
 function topBar(back) {
   const backBtn = back === 'tools' ? '<button class="btn ghost small" data-act="section" data-sec="">← 全部工具</button>'
-    : back ? `<button class="btn ghost small" data-act="home">← ${curMeetingId ? '会议' : '活动策划'}</button>` : '';
-  return `<header class="top"><div class="brand">${backBtn}<h1>${back === 'tools' ? ({ meetings: '会议', feedback: '意见反馈', fbstats: '反馈统计', ppt: '汇报 PPT' }[homeSection] || '活动策划') : '活动策划工具箱'}</h1></div><div class="row"><span class="save" id="save"></span><button class="btn small ghost" data-act="help">帮助</button></div></header>`;
+    : back ? `<button class="btn ghost small" data-act="home">← ${curDeckId ? 'PPT' : curMeetingId ? '会议' : '活动策划'}</button>` : '';
+  return `<header class="top"><div class="brand">${backBtn}<h1>${back === 'tools' ? ({ meetings: '会议', feedback: '意见反馈', fbstats: '反馈统计', ppt: 'PPT' }[homeSection] || '活动策划') : '活动策划工具箱'}</h1></div><div class="row"><span class="save" id="save"></span><button class="btn small ghost" data-act="help">帮助</button></div></header>`;
 }
 
 /* 首页的工具入口；以后加新工具就在这里加一项 */
@@ -1324,15 +1368,15 @@ const TOOLS = [
     words: '活动 策划 策划案 方案 运动会 晚会 比赛 讲座 主题教育 团建 户外 流程 时间表 分组 计分 评分 评委 排名 大屏 预算 物资 经费 分工 任务 Word 文档 粘贴要求 通知' },
   { key: 'meetings', label: '会议', sub: '开会时自动转文字、录音、标发言人，会后整理纪要', icon: ICON_MEET,
     words: '会议 开会 例会 纪要 会议记录 记录 录音 转文字 语音 发言人 决定 待办 问题 Word' },
-  { key: 'ppt', label: '汇报 PPT', sub: '选一个活动，一键生成汇报幻灯片，用 WPS 能直接改', icon: ICON_PPT,
-    words: 'PPT ppt 幻灯片 汇报 答辩 演示 演讲 展示 审批 开会汇报' },
+  { key: 'ppt', label: 'PPT', sub: '粘贴文字或导入 Word 自动分页，9 种版式、6 套配色，能插照片', icon: ICON_PPT,
+    words: 'PPT ppt 幻灯片 演示文稿 汇报 答辩 演示 演讲 展示 竞选 班会 课堂 总结 审批' },
 ];
 let homeSection = '';
 function setSection(k) { homeSection = k; }
 
 function toolCount(key) {
-  if (key !== 'plans' && key !== 'meetings') return '';
-  const n = key === 'plans' ? plans.filter((p) => !p.sample).length : meetings.length;
+  const n = key === 'plans' ? plans.filter((p) => !p.sample).length : key === 'meetings' ? meetings.length : key === 'ppt' ? decks.length : 0;
+  if (key === 'ppt') return n ? `${n} 个 PPT` : '';
   return n ? `${n} 个${key === 'plans' ? '活动' : '会议'}` : '';
 }
 
@@ -1346,14 +1390,16 @@ function launcherBody(q) {
   const has = (s) => String(s || '').toLowerCase().includes(q);
   const tools = TOOLS.filter((t) => has(t.label) || has(t.sub) || t.words.toLowerCase().split(' ').some((w) => w.includes(q) || q.includes(w)));
   const ps = plans.filter((p) => has(p.name) || has(p.location) || has(p.theme));
+  const dks = decks.filter((d) => has(d.title) || d.slides.some((x) => has(x.title)));
   const ms = meetings.filter((m) => has(m.title) || has(m.attendees) || m.lines.some((l) => has(l.text)));
   const fb = (/反馈|意见|建议|问卷|吐槽|bug/i.test(q) ? '<button class="res" data-act="section" data-sec="feedback"><b>意见反馈</b><small>填一份 3 分钟的问卷，告诉我们哪里不好用、想要什么工具</small></button>' : '')
     + (/统计|汇总|反馈/.test(q) ? '<button class="res" data-act="section" data-sec="fbstats"><b>反馈汇总统计</b><small>把收到的反馈粘贴进来，自动统计、画图</small></button>' : '');
-  if (fb && !tools.length && !ps.length && !ms.length) return `<h3 class="res-h">其他</h3><div class="list">${fb}</div>`;
-  if (!tools.length && !ps.length && !ms.length) return `<div class="empty">没有找到「${esc(q)}」。可以试试「纪要」「分组」「预算」「录音」。</div>`;
+  if (fb && !tools.length && !ps.length && !ms.length && !dks.length) return `<h3 class="res-h">其他</h3><div class="list">${fb}</div>`;
+  if (!tools.length && !ps.length && !ms.length && !dks.length) return `<div class="empty">没有找到「${esc(q)}」。可以试试「纪要」「分组」「预算」「录音」。</div>`;
   const hitLine = (m) => m.lines.find((l) => has(l.text));
   return `${tools.length ? `<h3 class="res-h">工具</h3><div class="tools">${tools.map(toolTile).join('')}</div>` : ''}
     ${ps.length ? `<h3 class="res-h">活动</h3><div class="list">${ps.map((p) => `<button class="res" data-act="open" data-id="${p.id}"><b>${esc(p.name)}</b><small>${esc(TYPES[p.type].label)} · ${esc(p.date || '日期待定')}</small></button>`).join('')}</div>` : ''}
+    ${dks.length ? `<h3 class="res-h">PPT</h3><div class="list">${dks.map((d) => `<button class="res" data-dact="open" data-id="${d.id}"><b>${esc(d.title)}</b><small>${d.slides.length} 页</small></button>`).join('')}</div>` : ''}
     ${fb ? `<h3 class="res-h">其他</h3><div class="list">${fb}</div>` : ''}
     ${ms.length ? `<h3 class="res-h">会议</h3><div class="list">${ms.map((m) => { const l = !has(m.title) && hitLine(m); return `<button class="res" data-mact="open" data-id="${m.id}"><b>${esc(m.title)}</b><small>${l ? `记录里：${esc(l.text.slice(0, 40))}` : `${esc(m.date)} · ${m.lines.length} 条记录`}</small></button>`; }).join('')}</div>` : ''}`;
 }
@@ -1820,6 +1866,7 @@ function showParsed() {
 window.appBack = () => {
   if (!$('#modal').hidden) { closeModal(); return true; }
   if (!$('#big').hidden) { $('#bigClose')?.click(); return true; }
+  if (curDeckId) { curDeckId = null; render(); return true; }
   if (curMeetingId) { curMeetingId = null; render(); return true; }
   if (curId) { curId = null; render(); return true; }
   if (homeSection) { setSection(homeSection === 'fbstats' ? 'feedback' : ''); render(); return true; }
@@ -1833,7 +1880,7 @@ document.addEventListener('click', async (e) => {
   const p = cur();
   if (act === 'home') {
     if (live.on && !(await confirmBox('会议还在记录。回到首页后记录会继续，确定吗？', '回到首页'))) return;
-    curId = null; curMeetingId = null; render(); scrollTo(0, 0); return;
+    curId = null; curMeetingId = null; curDeckId = null; render(); scrollTo(0, 0); return;
   }
   if (act === 'open') { setSection('plans'); curId = b.dataset.id; tab = 'overview'; render(); scrollTo(0, 0); return; }
   if (act === 'new') {
@@ -1868,7 +1915,7 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if (act === 'backup') {
-    const data = JSON.stringify({ app: 'planner', version: 1, plans: plans.filter((x) => !x.sample), meetings }, null, 2);
+    const data = JSON.stringify({ app: 'planner', version: 1, plans: plans.filter((x) => !x.sample), meetings, decks }, null, 2);
     offerFile(`活动策划备份-${ymd(new Date())}.json`, data, data);
     return;
   }
@@ -1950,6 +1997,7 @@ function importBackup(file) {
       const list = (data.plans || []).filter((x) => x && x.id && TYPES[x.type]);
       if (!list.length) throw new Error();
       list.forEach((x) => { const i = plans.findIndex((y) => y.id === x.id); if (i >= 0) plans[i] = x; else plans.push(x); touch(x); });
+      (data.decks || []).filter((x) => x && x.kind === 'deck').forEach((x) => { const i = decks.findIndex((y) => y.id === x.id); if (i >= 0) decks[i] = x; else decks.push(x); touch(x); });
       (data.meetings || []).filter((x) => x && x.kind === 'meeting').forEach((x) => { const i = meetings.findIndex((y) => y.id === x.id); if (i >= 0) meetings[i] = x; else meetings.push(x); touch(x); });
       plans = plans.filter((x) => !x.sample);
       render();
@@ -2744,180 +2792,514 @@ function ensurePptx() {
   return pptxLoading;
 }
 
-const PPT = { green: '1D7A50', soft: 'E3F1E9', ink: '17231D', muted: '5E6B64', line: 'BFC8C2', marker: 'F4C84A', font: '微软雅黑' };
+/* ---------- 通用 PPT：大纲 / Word / 空白 / 活动 → 可编辑的幻灯片 → 16:9 PPT ---------- */
+const DLS_KEY = 'planner.decks.v1';
+let decks = [];
+let curDeckId = null;
+const curDeck = () => decks.find((d) => d.id === curDeckId);
+function readDecks() { try { return JSON.parse(localStorage.getItem(DLS_KEY) || '[]'); } catch { return []; } }
+function writeDecks() { try { localStorage.setItem(DLS_KEY, JSON.stringify(decks)); } catch { toast('手机存储满了，PPT 没能保存'); } }
 
-async function planPptx(p) {
-  await ensurePptx();
-  const pptx = new window.PptxGenJS();
-  pptx.layout = 'LAYOUT_WIDE'; // 13.33 × 7.5 英寸
-  pptx.title = p.name + '汇报';
-  pptx.defineSlideMaster({
-    title: 'BODY',
-    background: { color: 'FFFFFF' },
-    objects: [{ rect: { x: 0, y: 0, w: 13.33, h: 0.12, fill: { color: PPT.green } } }],
-    slideNumber: { x: 12.45, y: 7.0, w: 0.6, h: 0.3, fontFace: PPT.font, fontSize: 10, color: PPT.muted, align: 'right' },
+const THEMES = {
+  green: { name: '清新绿', main: '1D7A50', soft: 'E3F1E9', accent: 'F4C84A', text: '17231D', muted: '5E6B64', line: 'BFC8C2', onMain: 'FFFFFF' },
+  blue: { name: '商务蓝', main: '1F4E79', soft: 'E4EEF7', accent: '4FA3E0', text: '14202B', muted: '5A6878', line: 'BCC9D6', onMain: 'FFFFFF' },
+  red: { name: '中国红', main: 'B3221C', soft: 'FBE9E7', accent: 'F2C14E', text: '2A1412', muted: '7A5450', line: 'D9BDB9', onMain: 'FFFFFF' },
+  mono: { name: '简约黑白', main: '222222', soft: 'F1F1F1', accent: '888888', text: '1A1A1A', muted: '666666', line: 'C8C8C8', onMain: 'FFFFFF' },
+  orange: { name: '活力橙', main: 'E2631C', soft: 'FDEDE3', accent: '2F3E46', text: '2B1A10', muted: '7A5E4E', line: 'E3C8B8', onMain: 'FFFFFF' },
+  purple: { name: '学院紫', main: '5B3A8E', soft: 'EFE9F7', accent: 'D9A62E', text: '1F1630', muted: '6A5D80', line: 'CBBFDD', onMain: 'FFFFFF' },
+};
+
+const LAYOUTS = { cover: '封面', section: '章节页', bullets: '标题 + 要点', two: '左右两栏', image: '图片 + 文字', table: '表格', chart: '条形图', numbers: '大数字', end: '结束页' };
+const FIELDS = {
+  cover: [['title', '大标题'], ['sub', '副标题'], ['foot', '底部文字（汇报人、单位、日期）']],
+  section: [['title', '章节名称'], ['sub', '一句说明（选填）']],
+  bullets: [['title', '页标题'], ['points', '要点（一行一条）']],
+  two: [['title', '页标题'], ['lt', '左栏小标题'], ['points', '左栏要点（一行一条）'], ['rt', '右栏小标题'], ['right', '右栏要点（一行一条）']],
+  image: [['title', '页标题'], ['image', '图片'], ['points', '文字要点（一行一条）']],
+  table: [['title', '页标题'], ['table', '表格（一行一排，格子之间用 | 隔开；第一行是表头）']],
+  chart: [['title', '页标题'], ['table', '数据（一行一项：名称 | 数值）']],
+  numbers: [['title', '页标题'], ['points', '一行一个：数字 说明，例如：120人 参与人数']],
+  end: [['title', '大字（例如：谢谢！）'], ['sub', '小字（例如：敬请批评指导）']],
+};
+const AREA_FIELDS = new Set(['points', 'right', 'table']);
+
+const newSlide = (layout, o = {}) => ({ id: newId(), layout, title: '', sub: '', foot: '', points: '', lt: '', rt: '', right: '', table: '', image: '', ...o });
+function makeDeck(title, slides, theme = 'green') {
+  const now = new Date().toISOString();
+  return { id: 'd' + newId(), kind: 'deck', title: title || '新的 PPT', theme, slides, createdAt: now, updatedAt: now };
+}
+
+/* 图片存在本机 IndexedDB，PPT 里用 dataURL */
+const imgCache = {};
+const imageDb = () => new Promise((resolve, reject) => {
+  const req = indexedDB.open('planner-images', 1);
+  req.onupgradeneeded = () => req.result.createObjectStore('img');
+  req.onsuccess = () => resolve(req.result);
+  req.onerror = () => reject(req.error);
+});
+async function imgPut(key, dataUrl) { const db = await imageDb(); return new Promise((res, rej) => { const tx = db.transaction('img', 'readwrite'); tx.objectStore('img').put(dataUrl, key); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); }
+async function imgGet(key) {
+  if (imgCache[key]) return imgCache[key];
+  const db = await imageDb();
+  return new Promise((res) => { const r = db.transaction('img').objectStore('img').get(key); r.onsuccess = () => res((imgCache[key] = r.result || '')); r.onerror = () => res(''); });
+}
+async function imgDel(key) { const db = await imageDb(); return new Promise((res) => { const tx = db.transaction('img', 'readwrite'); tx.objectStore('img').delete(key); tx.oncomplete = res; tx.onerror = res; }); }
+// 手机照片很大，先缩到长边 1600 像素再存
+function shrinkImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve({ data: c.toDataURL('image/jpeg', 0.85), w: c.width, h: c.height });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('图片读不了')); };
+    img.src = url;
   });
-  const T = { fontFace: PPT.font, color: PPT.ink };
-  const clip = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
-  const lines = (s, max = 6) => String(s || '').split('\n').map((x) => x.replace(/^\s*(\d+[.、)）]|[-•·])\s*/, '').trim()).filter(Boolean).slice(0, max);
-  const head = (cells) => cells.map((c) => ({ text: c, options: { bold: true, fill: { color: PPT.soft }, color: PPT.ink, align: 'center' } }));
-  const tableOpts = (colW, y = 1.45) => ({
-    x: 0.6, y, w: colW.reduce((a, b) => a + b, 0), colW, ...T, fontSize: 12, valign: 'middle', margin: 0.06,
-    border: { type: 'solid', pt: 0.75, color: PPT.line }, autoPage: true, autoPageRepeatHeader: true, autoPageHeaderRows: 1, newSlideStartY: 0.5,
-  });
-  const titled = (title, sub) => {
-    const s = pptx.addSlide({ masterName: 'BODY' });
-    s.addShape(pptx.ShapeType.rect, { x: 0.6, y: 0.48, w: 0.08, h: 0.52, fill: { color: PPT.green }, line: { color: PPT.green } });
-    s.addText(title, { x: 0.8, y: 0.4, w: 11.5, h: 0.7, ...T, fontSize: 26, bold: true });
-    if (sub) s.addText(sub, { x: 0.8, y: 0.98, w: 11.5, h: 0.4, ...T, fontSize: 13, color: PPT.muted });
-    return s;
+}
+
+/* ---------- 文字 → 幻灯片 ---------- */
+const BULLET_RE = /^\s*(?:[-*•·●▪]|\d+[.、)）]|[（(]\d+[)）]|[一二三四五六七八九十]+、)\s*/;
+const splitCells = (line) => line.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split(/\s*[|｜\t]\s*/).map((c) => c.trim());
+
+// 支持两种写法：用 # 标记的大纲；或者普通文字（空行分段，每段第一行当标题）
+function parseOutline(raw) {
+  const text = String(raw || '').replace(/\r/g, '');
+  const lines = text.split('\n');
+  const slides = [];
+  let cur = null;
+  const flush = () => {
+    if (!cur) return;
+    const tableRows = cur.body.filter((l) => /[|｜\t]/.test(l) && splitCells(l).length > 1 && !/^\s*[-:| ]+$/.test(l));
+    const plain = cur.body.filter((l) => !tableRows.includes(l) && !/^\s*\|?[\s:-]+\|[\s:|-]*$/.test(l));
+    if (tableRows.length >= 2 && plain.length <= 1) {
+      cur.slide.layout = tableRows.length <= 9 && tableRows.slice(1).every((r) => splitCells(r).length === 2 && /^-?\d+(\.\d+)?$/.test(splitCells(r)[1].replace(/[,，元人%]/g, ''))) ? 'chart' : 'table';
+      cur.slide.table = tableRows.map((r) => splitCells(r).join(' | ')).join('\n');
+      if (plain[0] && !cur.slide.title) cur.slide.title = plain[0].replace(BULLET_RE, '');
+    } else if (cur.slide.layout === 'bullets') {
+      cur.slide.points = plain.map((l) => l.replace(BULLET_RE, '').trim()).filter(Boolean).join('\n');
+    } else if (cur.slide.layout === 'section' && plain.filter((l) => l.trim()).length > 1) {
+      // 章节标题下面有好几行内容：做成「标题 + 要点」页，内容不丢
+      cur.slide.layout = 'bullets';
+      cur.slide.points = plain.map((l) => l.replace(BULLET_RE, '').trim()).filter(Boolean).join('\n');
+    } else if (cur.slide.layout === 'cover' || cur.slide.layout === 'section') {
+      const rest = plain.map((l) => l.replace(BULLET_RE, '').trim()).filter(Boolean);
+      cur.slide.sub = rest[0] || cur.slide.sub;
+      if (cur.slide.layout === 'cover') cur.slide.foot = rest.slice(1).join('　·　');
+    }
+    slides.push(cur.slide);
+    cur = null;
   };
-  const bullets = (s, items, box) => {
-    if (!items.length) return;
-    s.addText(items.map((t) => ({ text: t, options: { bullet: { indent: 18 }, breakLine: true } })), { ...box, ...T, fontSize: 16, valign: 'top', paraSpaceAfter: 8, fit: 'shrink' });
-  };
+  if (/^\s*#{1,3}\s+\S/m.test(text)) {
+    let first = true;
+    for (const l of lines) {
+      const h = /^\s*(#{1,3})\s+(.+)$/.exec(l);
+      if (h) {
+        flush();
+        const level = h[1].length;
+        const layout = level === 1 ? (first ? 'cover' : 'section') : 'bullets';
+        cur = { slide: newSlide(layout, { title: h[2].trim() }), body: [] };
+        first = false;
+      } else if (/^\s*---+\s*$/.test(l)) {
+        flush();
+      } else if (l.trim()) {
+        if (!cur) cur = { slide: newSlide('bullets'), body: [] };
+        cur.body.push(l);
+      }
+    }
+    flush();
+  } else {
+    const blocks = text.split(/\n\s*\n/).map((b) => b.split('\n').filter((l) => l.trim())).filter((b) => b.length);
+    blocks.forEach((b, i) => {
+      if (i === 0 && b.length <= 3) {
+        cur = { slide: newSlide('cover', { title: b[0].trim() }), body: b.slice(1) };
+      } else {
+        const titled = b.length > 1 && b[0].trim().length <= 30 && !BULLET_RE.test(b[0]);
+        cur = { slide: newSlide('bullets', { title: titled ? b[0].trim().replace(/[：:]$/, '') : '' }), body: titled ? b.slice(1) : b };
+        // 一段很长的文字按句子拆成要点
+        if (cur.body.length === 1 && (cur.body[0].match(/[。！？；]/g) || []).length >= 2) cur.body = cur.body[0].split(/(?<=[。！？；])/).map((x) => x.trim()).filter(Boolean);
+      }
+      flush();
+    });
+  }
+  // 要点太多的页拆成两页
+  const out = [];
+  for (const s of slides) {
+    const pts = s.points.split('\n').filter(Boolean);
+    if (s.layout === 'bullets' && pts.length > 8) {
+      for (let i = 0; i < pts.length; i += 7) out.push({ ...s, id: newId(), title: s.title + (i ? '（续）' : ''), points: pts.slice(i, i + 7).join('\n') });
+    } else out.push(s);
+  }
+  return out;
+}
+
+// Word：按「标题 1 / 标题 2」样式分页，编号和项目符号变成要点
+async function docxToOutline(file) {
+  if (!window.JSZip) throw new Error('读取 Word 需要的组件没有加载出来');
+  const zip = await JSZip.loadAsync(file);
+  const xml = await zip.file('word/document.xml')?.async('string');
+  if (!xml) throw new Error('这个 Word 文件里没有找到正文');
+  const styles = (await zip.file('word/styles.xml')?.async('string')) || '';
+  const styleName = {};
+  for (const m of styles.matchAll(/<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>[\s\S]*?<w:name w:val="([^"]+)"/g)) styleName[m[1]] = m[2];
+  const dec = (s) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+  const out = [];
+  for (const p of xml.split(/<\/w:p>/)) {
+    const t = dec((p.match(/<w:t[^>]*>[^<]*<\/w:t>/g) || []).map((x) => x.replace(/<[^>]+>/g, '')).join('')).trim();
+    if (!t) continue;
+    const sid = (/<w:pStyle w:val="([^"]+)"/.exec(p) || [])[1] || '';
+    const name = (styleName[sid] || sid).toLowerCase();
+    const lvl = /title|^标题$/.test(name) ? 1 : (/(heading|标题)\s*([1-9])/.exec(name) || [])[2];
+    if (lvl) out.push(`${'#'.repeat(Math.min(3, +lvl === 1 ? 1 : 2))} ${t}`);
+    else if (/<w:numPr>/.test(p)) out.push(`- ${t}`);
+    else out.push(t);
+  }
+  // 没有标题样式的 Word：退回普通文字的分段方式
+  return out.some((l) => l.startsWith('#')) ? out.join('\n') : out.join('\n\n');
+}
+
+/* 活动 → 幻灯片 */
+function deckFromPlan(p) {
   const tl = timeline(p);
   const end = tl.length ? tl[tl.length - 1].end : toMin(p.startTime);
-  const dateText = p.date ? new Date(p.date + 'T00:00:00').toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' }) : '日期待定';
+  const dateText = p.date ? new Date(p.date + 'T00:00:00').toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) : '日期待定';
   const items = p.items.filter((i) => i.name.trim());
   const bs = budgetSum(p);
-
-  // 1 封面
-  const cover = pptx.addSlide();
-  cover.background = { color: PPT.green };
-  cover.addShape(pptx.ShapeType.rect, { x: 0.9, y: 2.2, w: 0.12, h: 1.9, fill: { color: PPT.marker }, line: { color: PPT.marker } });
-  cover.addText(p.name, { x: 1.25, y: 2.0, w: 11, h: 1.3, fontFace: PPT.font, fontSize: 44, bold: true, color: 'FFFFFF', fit: 'shrink' });
-  cover.addText(p.theme ? `「${p.theme}」` : '活动策划汇报', { x: 1.25, y: 3.3, w: 11, h: 0.7, fontFace: PPT.font, fontSize: 22, color: 'E3F1E9' });
-  cover.addText([p.organizer, dateText].filter(Boolean).join('　·　'), { x: 1.25, y: 5.9, w: 11, h: 0.5, fontFace: PPT.font, fontSize: 16, color: 'FFFFFF' });
-
-  // 2 活动概况
-  const ov = titled('活动概况', TYPES[p.type].label);
-  const facts = [['活动时间', `${dateText}\n${p.startTime}—${hm(end)}`], ['活动地点', p.location || '待定'], ['参与对象', p.audience || '待定'], ['活动规模', `约 ${num(p.headcount) || '—'} 人`], ['经费预算', money(bs.total)]];
-  if (p.groups.length) facts.push(['分组', `${p.groups.length} 个小组`]);
-  facts.forEach(([k, v], i) => {
-    const x = 0.6 + (i % 3) * 4.1;
-    const y = 1.75 + Math.floor(i / 3) * 2.45;
-    ov.addShape(pptx.ShapeType.roundRect, { x, y, w: 3.85, h: 2.1, rectRadius: 0.12, fill: { color: 'F6F8F6' }, line: { color: PPT.line, width: 0.75 } });
-    ov.addText(k, { x: x + 0.3, y: y + 0.25, w: 3.3, h: 0.45, ...T, fontSize: 14, color: PPT.muted });
-    ov.addText(v, { x: x + 0.3, y: y + 0.75, w: 3.3, h: 1.15, ...T, fontSize: 20, bold: true, valign: 'top', fit: 'shrink' });
-  });
-
-  // 3 背景与目的
-  if ((sectionOn(p, 'background') && String(p.background || '').trim()) || (sectionOn(p, 'goals') && String(p.goals || '').trim())) {
-    const s = titled('活动背景与目的');
-    if (sectionOn(p, 'background') && String(p.background || '').trim()) {
-      s.addText('活动背景', { x: 0.6, y: 1.5, w: 5.8, h: 0.5, ...T, fontSize: 18, bold: true, color: PPT.green });
-      s.addText(clip(p.background, 220), { x: 0.6, y: 2.05, w: 5.8, h: 4.6, ...T, fontSize: 16, valign: 'top', lineSpacingMultiple: 1.3, fit: 'shrink' });
-    }
-    if (sectionOn(p, 'goals') && String(p.goals || '').trim()) {
-      s.addText('活动目的', { x: 6.9, y: 1.5, w: 5.8, h: 0.5, ...T, fontSize: 18, bold: true, color: PPT.green });
-      bullets(s, lines(p.goals), { x: 6.9, y: 2.05, w: 5.8, h: 4.6 });
-    }
+  const on = (k) => sectionOn(p, k);
+  const L = (s) => String(s || '').split('\n').map((x) => x.replace(BULLET_RE, '').trim()).filter(Boolean).join('\n');
+  const row = (...c) => c.map((x) => String(x ?? '').replace(/\|/g, '/')).join(' | ');
+  const S = [newSlide('cover', { title: p.name, sub: p.theme || '活动策划汇报', foot: [p.organizer, dateText].filter(Boolean).join('　·　') })];
+  S.push(newSlide('numbers', { title: '活动概况', points: [`${p.startTime}—${hm(end)} ${dateText}`, `${p.location || '待定'} 活动地点`, `${num(p.headcount) || '—'}人 参与规模`, `${money(bs.total)} 经费预算`, ...(p.groups.length ? [`${p.groups.length}组 分组`] : [])].join('\n') }));
+  if ((on('background') && p.background) || (on('goals') && p.goals)) S.push(newSlide('two', { title: '活动背景与目的', lt: '活动背景', points: on('background') ? L(p.background) : '', rt: '活动目的', right: on('goals') ? L(p.goals) : '' }));
+  if (on('content') && items.length) {
+    const t = p.type === 'gala' ? [row('节目', '表演者', '类型', '时长'), ...items.map((i) => row(i.name, i.who, i.cat, `${num(i.minutes)}分钟`))]
+      : p.type === 'lecture' ? [row('议程', '主讲 / 负责人', '时长'), ...items.map((i) => row(i.name, i.who, `${num(i.minutes)}分钟`))]
+      : [row('名称', '时长', '场地', '规则 / 说明'), ...items.map((i) => row(i.name, `${num(i.minutes)}分钟`, i.venue, i.note))];
+    S.push(newSlide('table', { title: '活动内容', table: t.join('\n') }));
   }
-
-  // 4 活动内容
-  if (sectionOn(p, 'content') && items.length) {
-    const s = titled('活动内容');
-    const intro = clip(p.content, 120);
-    if (intro) s.addText(intro, { x: 0.6, y: 1.3, w: 12.1, h: 0.9, ...T, fontSize: 14, color: PPT.muted, valign: 'top', fit: 'shrink' });
-    const y = intro ? 2.3 : 1.45;
-    if (p.type === 'gala') s.addTable([head(['序号', '节目', '表演者', '类型', '时长']), ...items.map((i, k) => [String(k + 1), i.name, i.who, i.cat, `${num(i.minutes)} 分钟`])], tableOpts([0.9, 5, 3, 1.6, 1.6], y));
-    else if (p.type === 'lecture') s.addTable([head(['议程', '主讲 / 负责人', '时长']), ...items.map((i) => [i.name, i.who, `${num(i.minutes)} 分钟`])], tableOpts([6, 4, 2.1], y));
-    else s.addTable([head(['名称', '时长', '场地', '规则 / 说明']), ...items.map((i) => [i.name, `${num(i.minutes)} 分钟`, i.venue, i.note])], tableOpts([3, 1.4, 2, 5.7], y));
-  }
-
-  // 5 当天流程
-  if (sectionOn(p, 'flow') && p.schedule.length) {
-    const s = titled('活动流程', `${dateText}　${p.startTime}—${hm(end)}`);
-    s.addTable([head(['时间', '环节', '地点', '负责人 / 说明']), ...p.schedule.map((x, i) => [`${hm(tl[i].start)}—${hm(tl[i].end)}`, x.title, x.place, [x.owner, x.note].filter(Boolean).join('：')])], { ...tableOpts([1.9, 3, 2, 5.2]), fontSize: 11 });
-  }
-
-  // 6 分组
-  if (sectionOn(p, 'groups') && p.groups.length) {
-    const s = titled('分组安排', `共 ${p.groups.length} 组`);
-    s.addTable([head(['组名', '组长', '人数', '成员']), ...p.groups.map((g) => [g.name, g.leader, String(g.members.length || ''), g.members.join('、')])], tableOpts([2, 1.8, 1.1, 7.2]));
-  }
-
-  // 7 计分办法
-  if (sectionOn(p, 'scoring') && (p.scoring === 'judge' || (p.scoring === 'rank' && p.groups.length))) {
-    const s = titled('计分与评奖办法');
-    if (p.scoring === 'rank') {
-      const pts = p.rankPoints.slice(0, Math.max(3, Math.min(8, p.groups.length)));
-      s.addTable([head(pts.map((_, i) => `第 ${i + 1} 名`)), pts.map((v) => ({ text: `${v} 分`, options: { align: 'center', fontSize: 20, bold: true, color: PPT.green } }))], { ...tableOpts(pts.map(() => 12.1 / pts.length), 1.8), autoPage: false, rowH: [0.5, 0.9] });
-      s.addText('每个项目按名次积分，各项目积分相加为团体总分，按总分评出团体名次。', { x: 0.6, y: 3.6, w: 12.1, h: 0.8, ...T, fontSize: 18 });
-    } else {
-      bullets(s, [`由 ${p.judges} 位评委现场打分，满分 10 分。`, p.judges >= 5 ? '去掉一个最高分和一个最低分。' : '所有评委分数都计入。', '取平均分作为最终得分，保留两位小数。', '按得分高低评出奖项。'], { x: 0.6, y: 1.6, w: 12.1, h: 4.8 });
-    }
-  }
-
-  // 8 人员分工
-  if (sectionOn(p, 'tasks') && p.tasks.length) {
-    const s = titled('人员分工', `${p.tasks.length} 项任务`);
-    s.addTable([head(['任务', '负责人', '截止日期', '状态']), ...[...p.tasks].sort((a, b) => String(a.due || '9').localeCompare(String(b.due || '9'))).map((t) => [t.task, t.owner || '待定', t.due || '待定', t.done ? '已完成' : '进行中'])], tableOpts([6.3, 2.2, 2.1, 1.5]));
-  }
-
-  // 9 经费预算：左边明细，右边按类别的图表
-  if (sectionOn(p, 'budget') && p.budget.length) {
-    const s = titled('经费预算', `合计 ${money(bs.total)}${num(p.budgetLimit) ? `　·　上限 ${money(num(p.budgetLimit))}` : ''}`);
-    const rows = p.budget.map((b) => [b.name, String(num(b.qty)), money(num(b.price)), money(num(b.qty) * num(b.price))]);
-    rows.push([{ text: '合计', options: { bold: true } }, '', '', { text: money(bs.total), options: { bold: true } }]);
-    s.addTable([head(['物品', '数量', '单价', '小计']), ...rows], { ...tableOpts([2.9, 0.9, 1.2, 1.3]), fontSize: 11 });
+  if (on('flow') && p.schedule.length) S.push(newSlide('table', { title: '活动流程', table: [row('时间', '环节', '地点', '负责人 / 说明'), ...p.schedule.map((x, i) => row(`${hm(tl[i].start)}—${hm(tl[i].end)}`, x.title, x.place, [x.owner, x.note].filter(Boolean).join('：')))].join('\n') }));
+  if (on('groups') && p.groups.length) S.push(newSlide('table', { title: '分组安排', table: [row('组名', '组长', '人数', '成员'), ...p.groups.map((g) => row(g.name, g.leader, g.members.length || '', g.members.join('、')))].join('\n') }));
+  if (on('scoring') && p.scoring === 'rank' && p.groups.length) S.push(newSlide('bullets', { title: '计分与评奖办法', points: [`名次积分：${p.rankPoints.map((v, i) => `第${i + 1}名 ${v} 分`).join('，')}`, '各项目积分相加为团体总分', '按总分评出团体名次'].join('\n') }));
+  if (on('scoring') && p.scoring === 'judge') S.push(newSlide('bullets', { title: '计分与评奖办法', points: [`${p.judges} 位评委现场打分，满分 10 分`, p.judges >= 5 ? '去掉一个最高分和一个最低分' : '所有评委分数都计入', '取平均分作为最终得分，保留两位小数', '按得分高低评出奖项'].join('\n') }));
+  if (on('tasks') && p.tasks.length) S.push(newSlide('table', { title: '人员分工', table: [row('任务', '负责人', '截止日期', '状态'), ...[...p.tasks].sort((a, b) => String(a.due || '9').localeCompare(String(b.due || '9'))).map((t) => row(t.task, t.owner || '待定', t.due || '待定', t.done ? '已完成' : '进行中'))].join('\n') }));
+  if (on('budget') && p.budget.length) {
+    S.push(newSlide('table', { title: `经费预算（合计 ${money(bs.total)}）`, table: [row('物品', '数量', '单价', '小计'), ...p.budget.map((b) => row(b.name, num(b.qty), money(num(b.price)), money(num(b.qty) * num(b.price))))].join('\n') }));
     const cats = Object.entries(bs.byCat).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
-    if (cats.length) {
-      s.addChart(pptx.ChartType.bar, [{ name: '金额（元）', labels: cats.map((c) => c[0]), values: cats.map((c) => Math.round(c[1] * 100) / 100) }], {
-        x: 7.2, y: 1.45, w: 5.6, h: 4.9, barDir: 'bar', chartColors: [PPT.green], showValue: true, dataLabelFormatCode: '#,##0', dataLabelFontSize: 11, dataLabelFontFace: PPT.font,
-        catAxisLabelFontFace: PPT.font, catAxisLabelFontSize: 12, valAxisHidden: true, valGridLine: { style: 'none' }, catAxisOrientation: 'maxMin', showLegend: false,
-        showTitle: true, title: '按类别', titleFontFace: PPT.font, titleFontSize: 14, titleColor: PPT.muted,
+    if (cats.length > 1) S.push(newSlide('chart', { title: '预算构成（元）', table: [row('类别', '金额'), ...cats.map(([k, v]) => row(k, Math.round(v * 100) / 100))].join('\n') }));
+  }
+  if ((on('publicity') && p.publicity) || (on('safety') && p.safety)) S.push(newSlide('two', { title: '宣传方案与安全预案', lt: '宣传方案', points: on('publicity') ? L(String(p.publicity || '').replace(/[；;]/g, '\n')) : '', rt: '安全预案', right: on('safety') ? L(p.safety) : '' }));
+  S.push(newSlide('end', { title: '谢谢！', sub: '敬请批评指导' }));
+  return makeDeck(p.name + '汇报', S);
+}
+
+/* ---------- 预览（网页里画的缩略图，和 PPT 版式一致） ---------- */
+const tableRowsOf = (s) => String(s.table || '').split('\n').filter((l) => l.trim()).map(splitCells);
+const pointsOf = (txt) => String(txt || '').split('\n').map((l) => l.replace(BULLET_RE, '').trim()).filter(Boolean);
+const bigNum = (line) => { const m = /^(\S+)\s+(.+)$/.exec(line); return m ? [m[1], m[2]] : [line, '']; };
+
+function slidePreview(s, th) {
+  const c = (x) => '#' + x;
+  const style = `--m:${c(th.main)};--s:${c(th.soft)};--a:${c(th.accent)};--t:${c(th.text)};--mu:${c(th.muted)};--l:${c(th.line)}`;
+  const ul = (arr) => `<ul>${arr.slice(0, 8).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`;
+  const titleBar = (t) => `<div class="pv-t"><i></i>${esc(t || '（页标题）')}</div>`;
+  let inner = '';
+  if (s.layout === 'cover') inner = `<div class="pv-cover"><i></i><b>${esc(s.title || '（大标题）')}</b><span>${esc(s.sub)}</span><em>${esc(s.foot)}</em></div>`;
+  else if (s.layout === 'section') inner = `<div class="pv-sec"><b>${esc(s.title || '（章节名称）')}</b><span>${esc(s.sub)}</span></div>`;
+  else if (s.layout === 'end') inner = `<div class="pv-end"><b>${esc(s.title || '谢谢！')}</b><span>${esc(s.sub)}</span></div>`;
+  else {
+    let body = '';
+    if (s.layout === 'bullets') body = ul(pointsOf(s.points));
+    if (s.layout === 'two') body = `<div class="pv-two"><div><h6>${esc(s.lt)}</h6>${ul(pointsOf(s.points))}</div><div><h6>${esc(s.rt)}</h6>${ul(pointsOf(s.right))}</div></div>`;
+    if (s.layout === 'image') body = `<div class="pv-img"><div class="pv-pic">${s.image && imgCache[s.image] ? `<img src="${imgCache[s.image]}" alt="">` : '图片'}</div>${ul(pointsOf(s.points))}</div>`;
+    if (s.layout === 'table') { const r = tableRowsOf(s); body = r.length ? `<table>${r.slice(0, 9).map((row, i) => `<tr>${row.map((x) => (i ? `<td>${esc(x)}</td>` : `<th>${esc(x)}</th>`)).join('')}</tr>`).join('')}</table>${r.length > 9 ? '<p class="pv-more">（表格较长，PPT 里会自动续页）</p>' : ''}` : ''; }
+    if (s.layout === 'chart') {
+      const r = tableRowsOf(s).slice(1).map((x) => [x[0], num(String(x[1] || '').replace(/[,，]/g, ''))]).filter((x) => x[0]);
+      const max = Math.max(1, ...r.map((x) => x[1]));
+      body = `<div class="pv-chart">${r.slice(0, 8).map(([k, v]) => `<div><span>${esc(k)}</span><i style="width:${(v / max) * 100}%"></i><em>${v}</em></div>`).join('')}</div>`;
+    }
+    if (s.layout === 'numbers') body = `<div class="pv-nums">${pointsOf(s.points).slice(0, 6).map((l) => { const [n, d] = bigNum(l); return `<div><b>${esc(n)}</b><span>${esc(d)}</span></div>`; }).join('')}</div>`;
+    inner = `<div class="pv-top"></div>${titleBar(s.title)}<div class="pv-body">${body}</div>`;
+  }
+  return `<div class="pv lay-${s.layout}" style="${style}">${inner}</div>`;
+}
+
+/* ---------- 生成 PPT ---------- */
+async function deckPptx(deck) {
+  await ensurePptx();
+  for (const s of deck.slides) if (s.image) await imgGet(s.image);
+  const th = THEMES[deck.theme] || THEMES.green;
+  const F = '微软雅黑';
+  const pptx = new window.PptxGenJS();
+  pptx.layout = 'LAYOUT_WIDE';
+  pptx.title = deck.title;
+  pptx.defineSlideMaster({
+    title: 'BODY', background: { color: 'FFFFFF' },
+    objects: [{ rect: { x: 0, y: 0, w: 13.33, h: 0.12, fill: { color: th.main } } }],
+    slideNumber: { x: 12.45, y: 7.0, w: 0.6, h: 0.3, fontFace: F, fontSize: 10, color: th.muted, align: 'right' },
+  });
+  const T = { fontFace: F, color: th.text };
+  const bulletsBox = (sl, items, box, size = 18) => items.length && sl.addText(items.map((t) => ({ text: t, options: { bullet: { indent: 18 }, breakLine: true } })), { ...box, ...T, fontSize: size, valign: 'top', paraSpaceAfter: 10, fit: 'shrink' });
+  const body = (s) => {
+    const sl = pptx.addSlide({ masterName: 'BODY' });
+    sl.addShape(pptx.ShapeType.rect, { x: 0.6, y: 0.48, w: 0.08, h: 0.52, fill: { color: th.main }, line: { color: th.main } });
+    sl.addText(s.title || '', { x: 0.8, y: 0.4, w: 11.8, h: 0.7, ...T, fontSize: 26, bold: true, fit: 'shrink' });
+    return sl;
+  };
+  for (const s of deck.slides) {
+    if (s.layout === 'cover' || s.layout === 'end' || s.layout === 'section') {
+      const sl = pptx.addSlide();
+      sl.background = { color: s.layout === 'section' ? th.soft : th.main };
+      const fg = s.layout === 'section' ? th.main : th.onMain;
+      if (s.layout === 'cover') {
+        sl.addShape(pptx.ShapeType.rect, { x: 0.9, y: 2.2, w: 0.12, h: 1.9, fill: { color: th.accent }, line: { color: th.accent } });
+        sl.addText(s.title || '', { x: 1.25, y: 2.0, w: 11.2, h: 1.3, fontFace: F, fontSize: 44, bold: true, color: fg, fit: 'shrink' });
+        if (s.sub) sl.addText(s.sub, { x: 1.25, y: 3.3, w: 11.2, h: 0.8, fontFace: F, fontSize: 22, color: fg, fit: 'shrink' });
+        if (s.foot) sl.addText(s.foot, { x: 1.25, y: 5.9, w: 11.2, h: 0.5, fontFace: F, fontSize: 16, color: fg });
+      } else {
+        sl.addText(s.title || '', { x: 0.8, y: s.sub ? 2.5 : 2.9, w: 11.73, h: 1.3, fontFace: F, fontSize: s.layout === 'end' ? 48 : 40, bold: true, color: fg, align: 'center', fit: 'shrink' });
+        if (s.sub) sl.addText(s.sub, { x: 0.8, y: 3.9, w: 11.73, h: 0.7, fontFace: F, fontSize: 20, color: s.layout === 'section' ? th.muted : fg, align: 'center' });
+      }
+      continue;
+    }
+    const sl = body(s);
+    if (s.layout === 'bullets') bulletsBox(sl, pointsOf(s.points), { x: 0.8, y: 1.5, w: 11.7, h: 5.3 }, 20);
+    if (s.layout === 'two') {
+      [[s.lt, s.points, 0.6], [s.rt, s.right, 6.9]].forEach(([h, pts, x]) => {
+        if (h) sl.addText(h, { x, y: 1.45, w: 5.8, h: 0.55, ...T, fontSize: 19, bold: true, color: th.main });
+        bulletsBox(sl, pointsOf(pts), { x, y: h ? 2.05 : 1.5, w: 5.8, h: h ? 4.7 : 5.3 });
+      });
+    }
+    if (s.layout === 'image') {
+      const pts = pointsOf(s.points);
+      const data = s.image && imgCache[s.image];
+      const imgBox = pts.length ? { x: 0.6, y: 1.45, w: 6.6, h: 5.3 } : { x: 0.6, y: 1.45, w: 12.1, h: 5.3 };
+      if (data) sl.addImage({ data, ...imgBox, sizing: { type: 'contain', w: imgBox.w, h: imgBox.h } });
+      else sl.addShape(pptx.ShapeType.rect, { ...imgBox, fill: { color: th.soft }, line: { color: th.line } });
+      if (pts.length) bulletsBox(sl, pts, { x: 7.5, y: 1.5, w: 5.2, h: 5.3 });
+    }
+    if (s.layout === 'table') {
+      const rows = tableRowsOf(s);
+      if (rows.length) {
+        const cols = Math.max(...rows.map((r) => r.length));
+        const width = (v) => [...String(v || '')].reduce((w, ch) => w + (ch.charCodeAt(0) > 255 ? 2 : 1), 0);
+        const len = Array.from({ length: cols }, (_, ci) => Math.min(40, Math.max(4, ...rows.map((r) => width(r[ci])))));
+        const total = len.reduce((a, b) => a + b, 0);
+        const data = rows.map((r, i) => Array.from({ length: cols }, (_, ci) => (i === 0 ? { text: r[ci] || '', options: { bold: true, fill: { color: th.soft }, align: 'center' } } : r[ci] || '')));
+        sl.addTable(data, { x: 0.6, y: 1.45, w: 12.1, colW: len.map((l) => (l / total) * 12.1), ...T, fontSize: rows.length > 10 ? 11 : 13, valign: 'middle', margin: 0.06, border: { type: 'solid', pt: 0.75, color: th.line }, autoPage: true, autoPageRepeatHeader: true, autoPageHeaderRows: 1, newSlideStartY: 0.5 });
+      }
+    }
+    if (s.layout === 'chart') {
+      const r = tableRowsOf(s).slice(1).map((x) => [x[0], num(String(x[1] || '').replace(/[,，]/g, ''))]).filter((x) => x[0]);
+      if (r.length) sl.addChart(pptx.ChartType.bar, [{ name: tableRowsOf(s)[0]?.[1] || '数值', labels: r.map((x) => x[0]), values: r.map((x) => x[1]) }], {
+        x: 0.8, y: 1.45, w: 11.7, h: 5.4, barDir: 'bar', chartColors: [th.main], showValue: true, dataLabelFontSize: 12, dataLabelFontFace: F,
+        catAxisLabelFontFace: F, catAxisLabelFontSize: 14, valAxisHidden: true, valGridLine: { style: 'none' }, catAxisOrientation: 'maxMin', showLegend: false,
+      });
+    }
+    if (s.layout === 'numbers') {
+      const items = pointsOf(s.points).slice(0, 6);
+      const perRow = items.length <= 3 ? items.length : Math.ceil(items.length / 2);
+      const w = (12.1 - (perRow - 1) * 0.3) / Math.max(1, perRow);
+      items.forEach((l, i) => {
+        const [n, d] = bigNum(l);
+        const x = 0.6 + (i % perRow) * (w + 0.3);
+        const y = items.length <= 3 ? 2.2 : 1.6 + Math.floor(i / perRow) * 2.6;
+        sl.addShape(pptx.ShapeType.roundRect, { x, y, w, h: 2.3, rectRadius: 0.12, fill: { color: th.soft }, line: { color: th.soft } });
+        sl.addText(n, { x: x + 0.2, y: y + 0.3, w: w - 0.4, h: 1.1, fontFace: F, fontSize: 32, bold: true, color: th.main, align: 'center', fit: 'shrink' });
+        sl.addText(d, { x: x + 0.2, y: y + 1.4, w: w - 0.4, h: 0.6, ...T, fontSize: 15, color: th.muted, align: 'center', fit: 'shrink' });
       });
     }
   }
-
-  // 10 宣传与安全
-  const pub = sectionOn(p, 'publicity') ? lines(p.publicity, 5) : [];
-  const safe = sectionOn(p, 'safety') ? lines(p.safety, 6) : [];
-  if (pub.length || safe.length) {
-    const s = titled('宣传方案与安全预案');
-    if (pub.length) { s.addText('宣传方案', { x: 0.6, y: 1.5, w: 5.8, h: 0.5, ...T, fontSize: 18, bold: true, color: PPT.green }); bullets(s, pub.flatMap((x) => x.split(/[；;]/).map((y) => y.trim()).filter(Boolean)).slice(0, 6), { x: 0.6, y: 2.05, w: 5.8, h: 4.6 }); }
-    if (safe.length) { s.addText('安全预案', { x: 6.9, y: 1.5, w: 5.8, h: 0.5, ...T, fontSize: 18, bold: true, color: PPT.green }); bullets(s, safe, { x: 6.9, y: 2.05, w: 5.8, h: 4.6 }); }
-  }
-
-  // 11 结束页
-  const endS = pptx.addSlide();
-  endS.background = { color: PPT.green };
-  endS.addText('谢谢！', { x: 0, y: 2.6, w: 13.33, h: 1.2, fontFace: PPT.font, fontSize: 48, bold: true, color: 'FFFFFF', align: 'center' });
-  endS.addText('敬请批评指导', { x: 0, y: 3.8, w: 13.33, h: 0.7, fontFace: PPT.font, fontSize: 22, color: 'E3F1E9', align: 'center' });
-
   return pptx.write({ outputType: 'blob' });
 }
 
-async function downloadPptx(p) {
+async function downloadDeck(deck) {
   toast('正在生成 PPT…');
-  try {
-    const blob = await planPptx(p);
-    offerFile(`${p.name}汇报.pptx`, blob);
-  } catch {
-    toast('PPT 没能生成：第一次使用需要联网加载组件，请联网后再试');
-  }
+  try { offerFile(`${deck.title || 'PPT'}.pptx`, await deckPptx(deck)); }
+  catch { toast('PPT 没能生成：第一次使用需要联网加载组件，请联网后再试'); }
+}
+// 活动页的「下载 PPT」：用活动内容直接生成
+async function downloadPptx(p) { await downloadDeck(deckFromPlan(p)); }
+
+/* ---------- 界面 ---------- */
+function pptView() {
+  const realPlans = plans.filter((p) => p.name);
+  return `${topBar('tools')}
+  <section class="panel"><h2>新建 PPT</h2>
+    <div class="new-grid">
+      <button class="new-card paste-card" data-dact="paste"><b>粘贴文字，自动分页</b><span>把讲稿、大纲、通知粘贴进来，每段自动变成一页。</span></button>
+      <label class="new-card"><b>导入 Word</b><span>按 Word 里的标题分页，正文变成要点。</span><input type="file" id="deck-docx" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></label>
+      <button class="new-card" data-dact="blank"><b>空白开始</b><span>从封面开始，一页一页自己加。</span></button>
+    </div>
+  </section>
+  <section class="panel"><h2>我的 PPT</h2>
+    ${decks.length ? `<div class="list">${[...decks].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).map((d) => `<button class="res deck-row" data-dact="open" data-id="${d.id}"><b>${esc(d.title)}</b><small>${d.slides.length} 页 · ${esc((THEMES[d.theme] || THEMES.green).name)} · ${esc(String(d.updatedAt).slice(0, 10))}</small></button>`).join('')}</div>` : '<div class="empty">还没有 PPT。用上面任意一种方式新建。</div>'}
+  </section>
+  ${realPlans.length ? `<section class="panel"><h2>从活动生成</h2><p class="hint">用活动里的概况、流程、分组、分工、预算等内容做成 PPT，生成后还能改。</p>
+    <div class="list">${realPlans.map((p) => `<div class="item ppt-row"><div><b>${esc(p.name)}</b><div class="meta hint">${esc(TYPES[p.type].label)}${p.sample ? ' · 示例' : ''}</div></div><button class="btn small" data-dact="fromplan" data-id="${p.id}">生成</button></div>`).join('')}</div></section>` : ''}`;
 }
 
-function pptView() {
-  const list = plans.filter((p) => p.name);
-  return `${topBar('tools')}
-  <section class="panel"><h2>一键生成汇报 PPT</h2>
-    <ol class="help">
-      <li><b>选一个活动，点「生成 PPT」</b><span>会用活动里的概况、流程、分组、计分、分工、预算等内容，生成一份 16:9 的汇报幻灯片。</span></li>
-      <li><b>用 WPS 或 PowerPoint 打开</b><span>文字、表格、图表都能直接改。</span></li>
-    </ol>
-  </section>
-  <section class="panel"><h2>选择活动</h2>
-    ${list.length ? `<div class="list">${list.map((p) => `<div class="item ppt-row"><div><b>${esc(p.name)}</b><div class="meta hint">${esc(TYPES[p.type].label)} · ${esc(p.date || '日期待定')}${p.sample ? ' · 示例' : ''}</div></div><button class="btn primary small" data-act="pptx" data-id="${p.id}">生成 PPT</button></div>`).join('')}</div>`
-      : '<div class="empty">还没有活动。先去「活动策划」建一个活动，再回来生成 PPT。</div>'}
+function slideEditor(s, i, n) {
+  const fields = FIELDS[s.layout].map(([k, label]) => {
+    if (k === 'image') {
+      return `<div class="cap show"><span>${label}</span><div class="row"><label class="btn small">${s.image ? '换一张' : '选择图片'}<input type="file" accept="image/*" data-simg="${s.id}" hidden></label>${s.image ? `<button class="btn small ghost" data-dact="rmimg" data-id="${s.id}">去掉图片</button>` : '<span class="hint">可以选手机相册里的照片</span>'}</div></div>`;
+    }
+    const v = esc(s[k]);
+    return AREA_FIELDS.has(k)
+      ? `<label class="cap show"><span>${label}</span><textarea data-sf="${k}" data-id="${s.id}" id="sf-${s.id}-${k}" placeholder="${esc(label)}">${v}</textarea></label>`
+      : `<label class="cap show"><span>${label}</span><input type="text" data-sf="${k}" data-id="${s.id}" id="sf-${s.id}-${k}" value="${v}" placeholder="${esc(label)}"></label>`;
+  }).join('');
+  return `<section class="panel slide-card" id="slide-${s.id}">
+    <div class="panel-head"><h3><span class="secno">${i + 1}</span>${esc(LAYOUTS[s.layout])}</h3>
+      <div class="row"><button class="x" data-dact="up" data-id="${s.id}" aria-label="上移" ${i ? '' : 'disabled'}>↑</button><button class="x" data-dact="down" data-id="${s.id}" aria-label="下移" ${i < n - 1 ? '' : 'disabled'}>↓</button><button class="x" data-dact="dup" data-id="${s.id}" aria-label="复制这一页">⧉</button><button class="x" data-dact="rm" data-id="${s.id}" aria-label="删除这一页">×</button></div></div>
+    <div class="slide-grid">
+      <div class="pv-wrap" id="pv-${s.id}">${slidePreview(s, THEMES[curDeck().theme] || THEMES.green)}</div>
+      <div class="slide-fields">
+        <label class="cap show"><span>版式</span><select data-slayout="${s.id}" id="sl-${s.id}">${Object.entries(LAYOUTS).map(([k, l]) => `<option value="${k}" ${s.layout === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        ${fields}
+      </div>
+    </div>
+    <div class="row"><button class="btn small ghost" data-dact="add" data-id="${s.id}">＋ 在后面加一页</button></div>
   </section>`;
 }
+
+function deckView(d) {
+  return `${topBar(true)}
+  <section class="board">
+    <div class="row"><span class="tag">PPT · ${d.slides.length} 页</span><span class="spacer"></span><button class="btn primary small" data-dact="download">下载 PPT</button></div>
+    <input class="title-input" id="dk-title" data-dk="title" value="${esc(d.title)}" placeholder="PPT 名称（点这里修改）" aria-label="PPT 名称">
+    <div><p class="hint">配色主题（点一下整套换色）</p>
+      <div class="row themes">${Object.entries(THEMES).map(([k, t]) => `<button class="theme ${d.theme === k ? 'on' : ''}" data-dact="theme" data-theme="${k}" style="--c:#${t.main};--a:#${t.accent}"><i></i>${t.name}</button>`).join('')}</div></div>
+  </section>
+  ${d.slides.map((s, i) => slideEditor(s, i, d.slides.length)).join('') || '<div class="empty">还没有页面</div>'}
+  <section class="panel"><div class="row"><button class="btn" data-dact="add">＋ 加一页</button><span class="spacer"></span><button class="btn primary" data-dact="download">下载 PPT</button></div>
+    <div class="row"><span class="spacer"></span><button class="btn small danger" data-dact="del">删除这个 PPT</button></div></section>`;
+}
+
+function refreshPreview(s) {
+  const el = document.getElementById('pv-' + s.id);
+  if (el) el.innerHTML = slidePreview(s, THEMES[curDeck().theme] || THEMES.green);
+}
+
+async function openDeck(id) {
+  curDeckId = id; curId = null; curMeetingId = null; setSection('ppt');
+  const d = curDeck();
+  for (const s of d.slides) if (s.image) await imgGet(s.image);
+  render(); scrollTo(0, 0);
+}
+function createDeck(d) { decks.push(d); touch(d); openDeck(d.id); }
+
+function openPasteDeck() {
+  const box = modal(`<h3>粘贴文字，自动分页</h3>
+    <p class="hint">空一行就是新的一页，每段第一行当页标题。会用 # 号的话：「# 」是封面或章节，「## 」是一页，「- 」是要点；用 | 隔开的几行会变成表格。</p>
+    <textarea id="deck-text" placeholder="例如：&#10;班级期中总结&#10;高一（3）班&#10;&#10;学习情况&#10;平均分比上次提高 5 分&#10;数学进步最大&#10;&#10;下一步计划&#10;成立学习小组&#10;每周一次错题分享" style="font-family:var(--font-body);font-size:14px;min-height:220px"></textarea>
+    <div class="row"><span class="spacer"></span><button class="btn" data-act="req-close">取消</button><button class="btn primary" data-dact="paste-go">生成</button></div>`);
+  setTimeout(() => box.querySelector('textarea').focus(), 50);
+}
+
+document.addEventListener('input', (e) => {
+  const d = curDeck();
+  if (!d) return;
+  const el = e.target;
+  if (el.dataset.dk) { d[el.dataset.dk] = el.value; touch(d); return; }
+  if (el.dataset.sf) {
+    const s = d.slides.find((x) => x.id === el.dataset.id);
+    if (s) { s[el.dataset.sf] = el.value; touch(d); refreshPreview(s); }
+    return;
+  }
+  if (el.dataset.slayout) {
+    const s = d.slides.find((x) => x.id === el.dataset.slayout);
+    if (s) { s.layout = el.value; touch(d); render(); document.getElementById('slide-' + s.id)?.scrollIntoView({ block: 'start' }); }
+  }
+});
+
+document.addEventListener('change', async (e) => {
+  const el = e.target;
+  if (el.id === 'deck-docx' && el.files[0]) {
+    try {
+      const file = el.files[0];
+      if (!/\.docx$/i.test(file.name)) throw new Error('只能导入 .docx 文件。旧版 .doc 请在 WPS 里另存为 .docx');
+      const slides = parseOutline(await docxToOutline(file));
+      if (!slides.length) throw new Error('这个 Word 里没有找到文字');
+      createDeck(makeDeck(slides[0].layout === 'cover' && slides[0].title ? slides[0].title : file.name.replace(/\.docx$/i, ''), [...slides, ...(slides.some((s) => s.layout === 'end') ? [] : [newSlide('end', { title: '谢谢！' })])]));
+      toast(`生成了 ${slides.length + 1} 页，检查一下每页内容`);
+    } catch (err) { toast(err.message || '这个 Word 读不了'); }
+    el.value = '';
+  }
+  if (el.dataset.simg && el.files[0]) {
+    const d = curDeck();
+    const s = d?.slides.find((x) => x.id === el.dataset.simg);
+    if (!s) return;
+    try {
+      const { data } = await shrinkImage(el.files[0]);
+      if (s.image) await imgDel(s.image);
+      s.image = 'img' + newId();
+      imgCache[s.image] = data;
+      await imgPut(s.image, data);
+      touch(d); render(); document.getElementById('slide-' + s.id)?.scrollIntoView({ block: 'start' });
+    } catch { toast('这张图片读不了，换一张试试'); }
+  }
+});
+
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-dact]');
+  if (!b) return;
+  const act = b.dataset.dact;
+  if (act === 'paste') { openPasteDeck(); return; }
+  if (act === 'paste-go') {
+    const slides = parseOutline($('#deck-text').value);
+    if (!slides.length) { toast('先粘贴一些文字'); return; }
+    closeModal();
+    const title = slides[0].layout === 'cover' ? slides[0].title : slides[0].title || '新的 PPT';
+    createDeck(makeDeck(title, [...slides, ...(slides.some((s) => s.layout === 'end') ? [] : [newSlide('end', { title: '谢谢！' })])]));
+    toast(`生成了 ${slides.length + 1} 页`);
+    return;
+  }
+  if (act === 'blank') { createDeck(makeDeck('新的 PPT', [newSlide('cover', { title: '' }), newSlide('bullets'), newSlide('end', { title: '谢谢！' })])); return; }
+  if (act === 'fromplan') { const p = plans.find((x) => x.id === b.dataset.id); if (p) createDeck(deckFromPlan(p)); return; }
+  if (act === 'open') { openDeck(b.dataset.id); return; }
+  const d = curDeck();
+  if (!d) return;
+  const idx = d.slides.findIndex((x) => x.id === b.dataset.id);
+  const keepPlace = (id) => { render(); document.getElementById('slide-' + id)?.scrollIntoView({ block: 'center' }); };
+  if (act === 'download') { downloadDeck(d); return; }
+  if (act === 'theme') { d.theme = b.dataset.theme; touch(d); render(); return; }
+  if (act === 'add') {
+    const s = newSlide('bullets');
+    d.slides.splice(idx >= 0 ? idx + 1 : Math.max(0, d.slides.length - (d.slides.at(-1)?.layout === 'end' ? 1 : 0)), 0, s);
+    touch(d); keepPlace(s.id); return;
+  }
+  if (act === 'dup' && idx >= 0) { const s = { ...clone(d.slides[idx]), id: newId() }; d.slides.splice(idx + 1, 0, s); touch(d); keepPlace(s.id); return; }
+  if ((act === 'up' || act === 'down') && idx >= 0) {
+    const j = act === 'up' ? idx - 1 : idx + 1;
+    if (j < 0 || j >= d.slides.length) return;
+    [d.slides[idx], d.slides[j]] = [d.slides[j], d.slides[idx]];
+    touch(d); keepPlace(d.slides[j].id); return;
+  }
+  if (act === 'rm' && idx >= 0) {
+    if (!(await confirmBox('删除这一页？', '删除'))) return;
+    const [s] = d.slides.splice(idx, 1);
+    if (s.image) await imgDel(s.image);
+    touch(d); render(); return;
+  }
+  if (act === 'rmimg' && idx >= 0) { const s = d.slides[idx]; await imgDel(s.image); s.image = ''; touch(d); keepPlace(s.id); return; }
+  if (act === 'del') {
+    if (!(await confirmBox(`删除「${d.title}」？删除后不能恢复。`, '删除'))) return;
+    for (const s of d.slides) if (s.image) await imgDel(s.image);
+    decks = decks.filter((x) => x.id !== d.id);
+    writeDecks();
+    if (remote) { try { await remote.doc(d.id).delete(); } catch { setSave('error'); } }
+    curDeckId = null; render(); toast('已删除');
+  }
+});
 
 /* ---------- 启动 ---------- */
 plans = readLocal() || [];
 meetings = readMeetings();
+decks = readDecks();
 if (!plans.length) plans = [samplePlan()];
 render();
 connect();
