@@ -157,6 +157,15 @@
   .res { display: grid; gap: 2px; text-align: left; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--paper); }
   .res small { color: var(--muted); font-size: 13px; }
   .center { text-align: center; }
+  .undo-space { height: 64px; }
+  .undo-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 40; display: flex; gap: 4px; padding: 5px; border-radius: 999px; background: var(--ink); box-shadow: 0 4px 16px rgb(0 0 0 / .2); }
+  .undo-bar button { border: 0; background: transparent; color: var(--bg); font: 600 15px var(--font-body); padding: 10px 18px; border-radius: 999px; min-height: 44px; }
+  .undo-bar button:disabled { opacity: .35; }
+  .undo-bar button:not(:disabled):active { background: rgb(255 255 255 / .15); }
+  .btn.changed { border-color: var(--warn); color: var(--warn); }
+  .orig { display: grid; gap: 10px; max-height: 50vh; overflow: auto; }
+  .orig b { font-size: 13px; color: var(--muted); }
+  .orig p { margin: 2px 0 0; white-space: pre-wrap; font-size: 14px; background: var(--bg); border-radius: 8px; padding: 8px 10px; }
   .themes { gap: 6px; }
   .theme { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px 4px 4px; background: var(--paper); font-size: 13px; }
   .theme i { width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, var(--c) 62%, var(--a) 62%); }
@@ -383,7 +392,7 @@
   .modal { position: fixed; inset: 0; z-index: 60; background: rgb(0 0 0 / .45); display: grid; place-items: center; padding: 16px; }
   .modal-box { background: var(--paper); border-radius: var(--radius); padding: 20px; width: min(520px, 100%); max-height: 85vh; overflow: auto; display: grid; gap: 14px; }
   .modal-box textarea { min-height: 200px; font-family: var(--font-mono); font-size: 12px; }
-  .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 70; background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; }
+  .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 70; background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; }
   .empty { text-align: center; color: var(--muted); padding: 20px; border: 1px dashed var(--line); border-radius: 10px; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -3162,7 +3171,7 @@ function slideEditor(s, i, n) {
         ${fields}
       </div>
     </div>
-    <div class="row"><button class="btn small ghost" data-dact="add" data-id="${s.id}">＋ 在后面加一页</button></div>
+    <div class="row"><button class="btn small ghost" data-dact="add" data-id="${s.id}">＋ 在后面加一页</button><span class="spacer"></span>${s.orig ? `<button class="btn small ${slideChanged(s) ? 'changed' : 'ghost'}" data-dact="orig" data-id="${s.id}" id="orig-${s.id}">${slideChanged(s) ? '查看原文（已修改）' : '查看原文'}</button>` : ''}</div>
   </section>`;
 }
 
@@ -3176,7 +3185,88 @@ function deckView(d) {
   </section>
   ${d.slides.map((s, i) => slideEditor(s, i, d.slides.length)).join('') || '<div class="empty">还没有页面</div>'}
   <section class="panel"><div class="row"><button class="btn" data-dact="add">＋ 加一页</button><span class="spacer"></span><button class="btn primary" data-dact="download">下载 PPT</button></div>
-    <div class="row"><span class="spacer"></span><button class="btn small danger" data-dact="del">删除这个 PPT</button></div></section>`;
+    <div class="row"><span class="spacer"></span><button class="btn small danger" data-dact="del">删除这个 PPT</button></div></section>
+  <div class="undo-space"></div>
+  <div class="undo-bar" role="toolbar" aria-label="撤销和重做"><button data-dact="undo" id="undo-btn" ${histOf(d).past.length ? '' : 'disabled'}>↶ 撤销</button><button data-dact="redo" id="redo-btn" ${histOf(d).future.length ? '' : 'disabled'}>重做 ↷</button></div>`;
+}
+
+/* 撤销 / 重做：每个 PPT 各自一份历史，最多 60 步；连续打字算一步 */
+const deckHist = {};
+const histOf = (d) => (deckHist[d.id] = deckHist[d.id] || { past: [], future: [] });
+const deckSnap = (d) => JSON.stringify({ title: d.title, theme: d.theme, slides: d.slides });
+let typingDeck = null;
+let typingTimer = null;
+function remember(d) {
+  const h = histOf(d);
+  const sn = deckSnap(d);
+  if (h.past.at(-1) !== sn) h.past.push(sn);
+  if (h.past.length > 60) h.past.shift();
+  h.future = [];
+  updateUndoBar();
+}
+function rememberTyping(d) {
+  if (typingDeck !== d.id) { remember(d); typingDeck = d.id; }
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(() => (typingDeck = null), 1000);
+}
+function undoDeck(dir) {
+  const d = curDeck();
+  if (!d) return;
+  const h = histOf(d);
+  const from = dir < 0 ? h.past : h.future;
+  if (!from.length) { toast(dir < 0 ? '没有可以撤销的了' : '没有可以重做的了'); return; }
+  (dir < 0 ? h.future : h.past).push(deckSnap(d));
+  Object.assign(d, JSON.parse(from.pop()));
+  typingDeck = null;
+  touch(d);
+  const y = scrollY;
+  render();
+  scrollTo(0, y);
+  toast(dir < 0 ? '已撤销' : '已重做');
+}
+function updateUndoBar() {
+  const d = curDeck();
+  if (!d) return;
+  const h = histOf(d);
+  const u = $('#undo-btn'); const r = $('#redo-btn');
+  if (u) u.disabled = !h.past.length;
+  if (r) r.disabled = !h.future.length;
+}
+document.addEventListener('keydown', (e) => {
+  if (!curDeck() || !(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return;
+  e.preventDefault();
+  undoDeck(e.shiftKey ? 1 : -1);
+});
+
+// 从 Word 或文字生成时，记住每一页最初的内容，以后随时能查看、恢复
+const ORIG_KEYS = ['layout', 'title', 'sub', 'foot', 'points', 'lt', 'rt', 'right', 'table'];
+const origOf = (s) => Object.fromEntries(ORIG_KEYS.map((k) => [k, s[k] || '']));
+const slideChanged = (s) => s.orig && ORIG_KEYS.some((k) => (s[k] || '') !== (s.orig[k] || ''));
+function showOriginal(d, s) {
+  const o = s.orig;
+  const rows = [['版式', LAYOUTS[o.layout]], ...FIELDS[o.layout].filter(([k]) => k !== 'image').map(([k, label]) => [label, o[k]])].filter(([, v]) => String(v || '').trim());
+  const text = rows.map(([k, v]) => `${k}：\n${v}`).join('\n\n');
+  const box = modal(`<h3>这一页的原文</h3><p class="hint">这是从 Word 或粘贴的文字生成时的内容。</p>
+    <div class="orig">${rows.map(([k, v]) => `<div><b>${esc(k)}</b><p>${esc(v)}</p></div>`).join('')}</div>
+    <div class="row"><button class="btn" data-close>关闭</button><button class="btn" data-copy>复制原文</button><span class="spacer"></span><button class="btn primary" data-restore ${slideChanged(s) ? '' : 'disabled'}>恢复成原文</button></div>`);
+  box.querySelector('[data-close]').onclick = closeModal;
+  box.querySelector('[data-copy]').onclick = () => copyText(text);
+  box.querySelector('[data-restore]').onclick = () => {
+    remember(d);
+    Object.assign(s, o);
+    touch(d); closeModal(); render();
+    document.getElementById('slide-' + s.id)?.scrollIntoView({ block: 'center' });
+    toast('已恢复成原文，想改回去可以点「撤销」');
+  };
+}
+
+function updateOrigBtn(s) {
+  const btn = document.getElementById('orig-' + s.id);
+  if (!btn) return;
+  const ch = slideChanged(s);
+  btn.textContent = ch ? '查看原文（已修改）' : '查看原文';
+  btn.classList.toggle('changed', ch);
+  btn.classList.toggle('ghost', !ch);
 }
 
 function refreshPreview(s) {
@@ -3190,7 +3280,10 @@ async function openDeck(id) {
   for (const s of d.slides) if (s.image) await imgGet(s.image);
   render(); scrollTo(0, 0);
 }
-function createDeck(d) { decks.push(d); touch(d); openDeck(d.id); }
+function createDeck(d, keepOriginal = true) {
+  if (keepOriginal) d.slides.forEach((s) => { if (s.layout !== 'end' || s.title !== '谢谢！') s.orig = origOf(s); });
+  decks.push(d); touch(d); openDeck(d.id);
+}
 
 function openPasteDeck() {
   const box = modal(`<h3>粘贴文字，自动分页</h3>
@@ -3204,15 +3297,15 @@ document.addEventListener('input', (e) => {
   const d = curDeck();
   if (!d) return;
   const el = e.target;
-  if (el.dataset.dk) { d[el.dataset.dk] = el.value; touch(d); return; }
+  if (el.dataset.dk) { rememberTyping(d); d[el.dataset.dk] = el.value; touch(d); return; }
   if (el.dataset.sf) {
     const s = d.slides.find((x) => x.id === el.dataset.id);
-    if (s) { s[el.dataset.sf] = el.value; touch(d); refreshPreview(s); }
+    if (s) { rememberTyping(d); s[el.dataset.sf] = el.value; touch(d); refreshPreview(s); updateOrigBtn(s); }
     return;
   }
   if (el.dataset.slayout) {
     const s = d.slides.find((x) => x.id === el.dataset.slayout);
-    if (s) { s.layout = el.value; touch(d); render(); document.getElementById('slide-' + s.id)?.scrollIntoView({ block: 'start' }); }
+    if (s) { remember(d); s.layout = el.value; touch(d); render(); document.getElementById('slide-' + s.id)?.scrollIntoView({ block: 'start' }); }
   }
 });
 
@@ -3235,7 +3328,7 @@ document.addEventListener('change', async (e) => {
     if (!s) return;
     try {
       const { data } = await shrinkImage(el.files[0]);
-      if (s.image) await imgDel(s.image);
+      remember(d);
       s.image = 'img' + newId();
       imgCache[s.image] = data;
       await imgPut(s.image, data);
@@ -3258,7 +3351,7 @@ document.addEventListener('click', async (e) => {
     toast(`生成了 ${slides.length + 1} 页`);
     return;
   }
-  if (act === 'blank') { createDeck(makeDeck('新的 PPT', [newSlide('cover', { title: '' }), newSlide('bullets'), newSlide('end', { title: '谢谢！' })])); return; }
+  if (act === 'blank') { createDeck(makeDeck('新的 PPT', [newSlide('cover', { title: '' }), newSlide('bullets'), newSlide('end', { title: '谢谢！' })]), false); return; }
   if (act === 'fromplan') { const p = plans.find((x) => x.id === b.dataset.id); if (p) createDeck(deckFromPlan(p)); return; }
   if (act === 'open') { openDeck(b.dataset.id); return; }
   const d = curDeck();
@@ -3266,6 +3359,10 @@ document.addEventListener('click', async (e) => {
   const idx = d.slides.findIndex((x) => x.id === b.dataset.id);
   const keepPlace = (id) => { render(); document.getElementById('slide-' + id)?.scrollIntoView({ block: 'center' }); };
   if (act === 'download') { downloadDeck(d); return; }
+  if (act === 'undo') { undoDeck(-1); return; }
+  if (act === 'redo') { undoDeck(1); return; }
+  if (act === 'orig' && idx >= 0) { showOriginal(d, d.slides[idx]); return; }
+  if (['theme', 'add', 'dup', 'up', 'down', 'rmimg'].includes(act)) remember(d);
   if (act === 'theme') { d.theme = b.dataset.theme; touch(d); render(); return; }
   if (act === 'add') {
     const s = newSlide('bullets');
@@ -3280,12 +3377,11 @@ document.addEventListener('click', async (e) => {
     touch(d); keepPlace(d.slides[j].id); return;
   }
   if (act === 'rm' && idx >= 0) {
-    if (!(await confirmBox('删除这一页？', '删除'))) return;
-    const [s] = d.slides.splice(idx, 1);
-    if (s.image) await imgDel(s.image);
-    touch(d); render(); return;
+    remember(d);
+    d.slides.splice(idx, 1);
+    touch(d); render(); toast('已删除这一页，点「撤销」可以找回'); return;
   }
-  if (act === 'rmimg' && idx >= 0) { const s = d.slides[idx]; await imgDel(s.image); s.image = ''; touch(d); keepPlace(s.id); return; }
+  if (act === 'rmimg' && idx >= 0) { const s = d.slides[idx]; s.image = ''; touch(d); keepPlace(s.id); return; }
   if (act === 'del') {
     if (!(await confirmBox(`删除「${d.title}」？删除后不能恢复。`, '删除'))) return;
     for (const s of d.slides) if (s.image) await imgDel(s.image);
