@@ -184,6 +184,7 @@
   .theme-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: start; }
   @media (max-width: 560px) { .theme-grid { gap: 4px; } .theme-pick { font-size: 11px; padding: 3px; gap: 3px; } }
   .theme-pick { display: grid; gap: 6px; padding: 6px; border: 2px solid transparent; border-radius: 10px; background: none; cursor: pointer; font: inherit; font-size: 13px; min-height: 0; margin: 0; height: auto; color: inherit; text-align: center; }
+  .new-tag { font-style: normal; font-size: .85em; background: var(--marker); color: #3a2a00; border-radius: 4px; padding: 0 4px; margin-right: 4px; font-weight: 700; }
   .theme-pick.on { border-color: var(--field); background: rgba(29,122,80,.06); font-weight: 700; }
   .ppt-row { grid-template-columns: minmax(0, 1fr) auto; padding: 12px 14px; }
   .fb-link { display: flex; justify-content: flex-end; margin-top: -6px; }
@@ -3053,6 +3054,7 @@ const THEMES = {
   orange: { name: '活力橙 · 波普', main: 'E8601C', soft: 'FFE9DB', accent: '2D3A45', bg: 'FFF8F2', text: '2A1B12', muted: '7D6253', line: 'F0D2BF', head: '微软雅黑', body: '微软雅黑', marker: 'circle', card: 'pop' },
   purple: { name: '学院紫 · 学术', main: '4B2E83', soft: 'EFEAF7', accent: 'C8A045', bg: 'FFFFFF', text: '1E1530', muted: '645A78', line: 'D2CAE2', head: '宋体', body: '微软雅黑', marker: 'dot', card: 'line' },
 };
+const BASE_THEMES = Object.keys(THEMES);
 
 const R = (x, y, w, h, fill, o = {}) => ({ k: 'rect', x, y, w, h, fill, ...o });
 const O = (x, y, w, h, fill, o = {}) => ({ k: 'oval', x, y, w, h, fill, ...o });
@@ -3064,6 +3066,7 @@ const TX = (x, y, w, h, t, o = {}) => ({ k: 'text', x, y, w, h, t: String(t ?? '
 
 /* ---- 各风格的封面 ---- */
 function coverEls(th, s, deck) {
+  if (th.cover) return th.cover(th, s, deck);
   const title = s.title || deck.title || '';
   const sub = s.sub || '';
   const foot = s.foot || '';
@@ -3129,6 +3132,7 @@ function coverEls(th, s, deck) {
 
 /* ---- 章节页 ---- */
 function sectionEls(th, s, deck, no) {
+  if (th.section) return th.section(th, s, deck, no);
   const t = s.title || '';
   const sub = s.sub || '';
   const E = [];
@@ -3180,6 +3184,7 @@ function sectionEls(th, s, deck, no) {
 
 /* ---- 结束页 ---- */
 function endEls(th, s, deck) {
+  if (th.end) return th.end(th, s, deck);
   const t = s.title || '谢谢！';
   const sub = s.sub || '';
   const cover = coverEls(th, { title: t, sub, foot: '' }, deck).filter((e) => e.k !== 'text');
@@ -3199,6 +3204,7 @@ function endEls(th, s, deck) {
 
 /* ---- 内容页的框架：背景装饰、标题、页脚；返回可以放内容的区域 ---- */
 function frameEls(th, s, deck, page, contentNo) {
+  if (th.frame) return th.frame(th, s, deck, page, contentNo);
   const t = s.title || '';
   const E = [];
   const foot = (color, x = 0.6, w = SW - 1.2) => [TX(x, SH - 0.5, w * 0.7, 0.3, deck.title, { size: 10, color, font: th.body }), TX(x + w * 0.7, SH - 0.5, w * 0.3, 0.3, pad2(page), { size: 10, color, font: th.body, align: 'right' })];
@@ -3255,6 +3261,7 @@ function frameEls(th, s, deck, page, contentNo) {
 
 /* ---- 要点：少而短的做成卡片，多的做成列表 ---- */
 function markerEls(th, x, y, size, n) {
+  if (th.drawMarker) return th.drawMarker(th, x, y, size, n);
   const c = th.main;
   switch (th.marker) {
     case 'num': return [O(x, y, size * 1.5, size * 1.5, c), TX(x, y, size * 1.5, size * 1.5, String(n), { size: Math.round(size * 72 * 0.8), bold: true, color: 'FFFFFF', font: th.body, align: 'center', valign: 'middle', ls: 1 })];
@@ -3298,7 +3305,8 @@ function cardEls(th, items, b) {
     const x = b.x + (i % cols) * (w + g);
     const y = y0 + Math.floor(i / cols) * (h + g);
     const num = pad2(i + 1);
-    switch (th.card) {
+    if (th.drawCard) E.push(...th.drawCard(th, x, y, w, h, i));
+    else switch (th.card) {
       case 'edge': E.push(R(x, y, w, h, th.soft), R(x, y, 0.09, h, th.accent), TX(x + 0.35, y + 0.25, 1.5, 0.6, num, { size: 26, bold: true, color: th.main, font: th.head, ls: 1 })); break;
       case 'frame': E.push(R(x, y, w, h, 'FFFFFF', { line: th.accent, lw: 1 }), R(x + 0.08, y + 0.08, w - 0.16, h - 0.16, null, { line: th.line, lw: 0.5 }), DIA(x + w / 2 - 0.13, y - 0.13, 0.26, 0.26, th.main), TX(x + 0.35, y + 0.3, w - 0.7, 0.55, `第${CN_NUM[i] || i + 1}`, { size: 18, bold: true, color: th.main, font: th.head, align: 'center' })); break;
       case 'rule': E.push(HL(x, y, w, th.main, 2), TX(x, y + 0.15, 2, 0.8, num, { size: 34, bold: true, color: 'D0D0D0', font: th.head, ls: 1 })); break;
@@ -3306,7 +3314,7 @@ function cardEls(th, items, b) {
       case 'line': E.push(R(x, y, w, h, 'FFFFFF', { line: th.line, lw: 0.75 }), R(x, y, w, 0.08, th.main), O(x + 0.35, y + 0.38, 0.22, 0.22, th.accent), TX(x + 0.7, y + 0.28, 2, 0.45, num, { size: 14, bold: true, color: th.main, font: th.body })); break;
       default: E.push(R(x, y, w, h, 'FFFFFF', { line: th.line, lw: 0.75 }), R(x, y, w, 0.08, th.main), TX(x + 0.35, y + 0.3, 1.6, 0.6, num, { size: 24, bold: true, color: th.accent, font: th.head, ls: 1 }));
     }
-    E.push(TX(x + 0.35, y + 0.95, w - 0.7, h - 1.15, t, { size: pt, color: th.text, font: th.body, ls: 1.35, align: th.card === 'frame' ? 'center' : 'left' }));
+    E.push(TX(x + 0.35, y + 0.95, w - 0.7, h - 1.15, t, { size: pt, color: th.text, font: th.body, ls: 1.35, align: th.card === 'frame' || th.cardAlign === 'center' ? 'center' : 'left' }));
   });
   return E;
 }
@@ -3338,7 +3346,7 @@ function composeSlide(s, deck) {
   if (s.layout === 'image') {
     const pts = pointsOf(s.points);
     const ib = pts.length ? { x: b.x, y: b.y, w: b.w * 0.56, h: b.h } : { x: b.x + 0.6, y: b.y, w: b.w - 1.2, h: b.h };
-    const frame = { green: [R(ib.x + 0.15, ib.y + 0.15, ib.w, ib.h, th.soft)], blue: [TRI(ib.x - 0.12, ib.y - 0.12, 1.1, 1.1, th.accent, { flipV: true })], red: [R(ib.x - 0.1, ib.y - 0.1, ib.w + 0.2, ib.h + 0.2, null, { line: th.accent, lw: 1.5 })], mono: [], orange: [O(ib.x - 0.5, ib.y + ib.h - 1.6, 2.2, 2.2, th.soft)], purple: [R(ib.x, ib.y + ib.h, ib.w, 0.08, th.accent)] }[deck.theme] || [];
+    const frame = th.imageFrame ? th.imageFrame(th, ib) : { green: [R(ib.x + 0.15, ib.y + 0.15, ib.w, ib.h, th.soft)], blue: [TRI(ib.x - 0.12, ib.y - 0.12, 1.1, 1.1, th.accent, { flipV: true })], red: [R(ib.x - 0.1, ib.y - 0.1, ib.w + 0.2, ib.h + 0.2, null, { line: th.accent, lw: 1.5 })], mono: [], orange: [O(ib.x - 0.5, ib.y + ib.h - 1.6, 2.2, 2.2, th.soft)], purple: [R(ib.x, ib.y + ib.h, ib.w, 0.08, th.accent)] }[deck.theme] || [];
     E.push(...frame, { k: 'img', ...ib, key: s.image, fill: th.soft });
     if (pts.length) E.push(...listEls(th, pts, { x: b.x + b.w * 0.56 + 0.45, y: b.y + 0.1, w: b.w * 0.44 - 0.45, h: b.h - 0.1 }, 20));
   }
@@ -3373,6 +3381,20 @@ function composeSlide(s, deck) {
   }
   return E;
 }
+
+/* ===== 每日新风格 =====
+   每天一套，按日期往下追加，格式：
+   THEMES.d20261030 = {
+     name: '风格名 · 两字', daily: '2026-10-30',
+     main, soft, accent, bg, text, muted, line,      // 颜色（6 位十六进制，不带 #）
+     head, body,                                       // 字体：微软雅黑 / 黑体 / 宋体 / 楷体
+     marker, card,                                     // 要点标记和卡片：可以借用上面 6 套的，也可以用下面的 drawMarker / drawCard 自己画
+     cover(th, s, deck), section(th, s, deck, no), end(th, s, deck),   // 必须有：返回图元数组
+     frame(th, s, deck, page, contentNo),             // 必须有：返回 { E: 图元数组, body: { x, y, w, h } }
+     imageFrame(th, ib), drawMarker(th, x, y, size, n), drawCard(th, x, y, w, h, i), cardAlign,  // 可选
+   };
+   图元只能用 R / O / TRI / DIA / HL / VL / TX，页面 13.333 × 7.5 英寸。 */
+/* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
 // 注意：这里只能用单引号，因为会写进 style="…" 里
@@ -3524,13 +3546,24 @@ function slideEditor(s, i, n) {
   </section>`;
 }
 
+// 每日新风格：默认显示最新 3 套 + 原来 6 套，其余点「更多风格」展开
+let showAllThemes = false;
+const dailyThemeKeys = () => Object.keys(THEMES).filter((k) => THEMES[k].daily).sort((a, b) => THEMES[b].daily.localeCompare(THEMES[a].daily));
+function themeKeysShown(d) {
+  const daily = dailyThemeKeys();
+  const keys = [...(showAllThemes ? daily : daily.slice(0, 3)), ...BASE_THEMES];
+  if (THEMES[d.theme] && !keys.includes(d.theme)) keys.unshift(d.theme);
+  return keys;
+}
+
 function deckView(d) {
   return `${topBar(true)}
   <section class="board">
     <div class="row"><span class="tag">PPT · ${d.slides.length} 页</span><span class="spacer"></span><button class="btn primary small" data-dact="download">下载 PPT</button></div>
     <input class="title-input" id="dk-title" data-dk="title" value="${esc(d.title)}" placeholder="PPT 名称（点这里修改）" aria-label="PPT 名称">
     <div><p class="hint">设计风格（点一下整套换，版式和装饰都不同）</p>
-      <div class="theme-grid">${Object.entries(THEMES).map(([k, t]) => `<button class="theme-pick ${d.theme === k ? 'on' : ''}" data-dact="theme" data-theme="${k}" aria-label="${esc(t.name)}"><div class="pv-wrap">${slidePreview(d.slides.find((x) => x.layout === 'cover') || { layout: 'cover', title: d.title }, { ...d, theme: k })}</div><span>${esc(t.name)}</span></button>`).join('')}</div></div>
+      <div class="theme-grid">${themeKeysShown(d).map((k) => { const t = THEMES[k]; return `<button class="theme-pick ${d.theme === k ? 'on' : ''}" data-dact="theme" data-theme="${k}" aria-label="${esc(t.name)}"><div class="pv-wrap">${slidePreview(d.slides.find((x) => x.layout === 'cover') || { layout: 'cover', title: d.title }, { ...d, theme: k })}</div><span>${t.daily ? `<em class="new-tag">${esc(t.daily.slice(5).replace('-', '.'))}</em>` : ''}${esc(t.name)}</span></button>`; }).join('')}</div>
+      ${dailyThemeKeys().length > 3 ? `<div class="row"><button class="btn small ghost" data-dact="morethemes">${showAllThemes ? '收起' : `更多风格（共 ${Object.keys(THEMES).length} 套）`}</button></div>` : ''}</div>
   </section>
   ${d.slides.map((s, i) => slideEditor(s, i, d.slides.length)).join('') || '<div class="empty">还没有页面</div>'}
   <section class="panel"><div class="row"><button class="btn" data-dact="add">＋ 加一页</button><span class="spacer"></span><button class="btn primary" data-dact="download">下载 PPT</button></div>
@@ -3725,6 +3758,7 @@ document.addEventListener('click', async (e) => {
   if (act === 'orig' && idx >= 0) { showOriginal(d, d.slides[idx]); return; }
   if (['theme', 'add', 'dup', 'up', 'down', 'rmimg'].includes(act)) remember(d);
   if (act === 'theme') { d.theme = b.dataset.theme; touch(d); render(); return; }
+  if (act === 'morethemes') { showAllThemes = !showAllThemes; const y = scrollY; render(); scrollTo(0, y); return; }
   if (act === 'add') {
     const s = newSlide('bullets');
     d.slides.splice(idx >= 0 ? idx + 1 : Math.max(0, d.slides.length - (d.slides.at(-1)?.layout === 'end' ? 1 : 0)), 0, s);
