@@ -1358,6 +1358,47 @@ const HELP_STEPS = `<ol class="help">
   <li><b>随时下载</b><span>活动页右上角的「下载 Word」随时能点，表格可以导出 Excel。</span></li>
 </ol>`;
 
+/* 帮助：按当前所在的工具显示对应的用法 */
+const HELPS = {
+  home: { title: '工具箱怎么用', steps: [
+    ['点一个工具进去', '活动策划、会议、PPT，每个工具里都有自己的说明。'],
+    ['不知道用哪个就搜', '在顶部搜索框搜要做的事，比如「纪要」「分组」「答辩」，也能搜到你建过的活动、会议和 PPT。'],
+    ['加到主屏幕', '用 Safari 打开，点分享 →「添加到主屏幕」。之后断网也能用。'],
+  ], tips: '资料只存在这台设备里。换手机前，在首页底部点「备份全部」。' },
+  plans: { title: '活动策划怎么用', steps: [
+    ['最快：粘贴通知，一键出策划案', '把通知粘贴进去，点「识别」，再点「直接下载 Word 策划案」。'],
+    ['想细改：按顶部的 1～7 一页页填', '概览、流程、分组、计分、预算物资、分工、写策划案。每页底部有「下一步」，不需要的页可以跳过。'],
+    ['随时下载', '活动页右上角能下载 Word 策划案和 PPT，各页的表格能导出 Excel。'],
+  ], tips: '活动当天：在「4 计分」录成绩，点「大屏展示」投到屏幕上。' },
+  meetings: { title: '会议怎么用', steps: [
+    ['开始', '点「开始新会议」，再点红色的「开始记录」。会议名称这些可以开完会再填。'],
+    ['谁说话就点谁的名字', '发言人在记录页随时可以加。说的话会一句一条，带上时间。'],
+    ['会后看「纪要」', '自动整理出决定、待办和问题，检查修改后下载 Word 纪要或导出 Excel。待办可以一键加进关联活动的分工。'],
+  ], tips: '转文字要联网。把手机放在桌子中间、靠近说话的人；看「手机听到的声音」那条，一直很短就挪近一点。' },
+  ppt: { title: 'PPT 怎么用', steps: [
+    ['新建', '粘贴文字（空一行就是新的一页），或者导入 Word（按标题分页），也可以空白开始，或从活动生成。'],
+    ['逐页修改', '每页上面是预览，下面改文字。能换版式、插手机里的照片、调整顺序、复制和删除。顶部可以整套换配色。'],
+    ['改错了不怕', '底部的「撤销」能退回上一步。从 Word 或文字生成的页，点「查看原文」能看到并恢复原来的内容。'],
+    ['下载', '点「下载 PPT」，再点「下载并打开」，用 WPS 打开就能放映和继续编辑。'],
+  ], tips: '用「|」隔开的几行会变成表格；「名称 | 数字」的数据会自动变成条形图。' },
+  feedback: { title: '意见反馈怎么用', steps: [
+    ['填问卷', '大约 3 分钟，「希望增加什么工具」这题必答。'],
+    ['复制反馈', '点「复制反馈」，答案会整理成一段文字。'],
+    ['发给我', '长按企业微信二维码保存，用微信「扫一扫」从相册选这张图加我，把反馈粘贴发给我。'],
+  ] },
+  fbstats: { title: '反馈统计怎么用', steps: [
+    ['复制收到的反馈', '在微信里长按别人发来的反馈，点复制。'],
+    ['粘贴进来', '一次可以粘贴很多份，夹着昵称和时间也没关系，重复的会自动跳过。'],
+    ['看统计', '满意度、每题的选择人数、大家想要的工具排行，都能看到，还能导出 Excel。'],
+  ], tips: '统计只存在这台设备里，换手机前先导出 Excel。' },
+};
+function currentHelp() {
+  if (curDeckId) return HELPS.ppt;
+  if (curMeetingId) return HELPS.meetings;
+  if (curId) return HELPS.plans;
+  return HELPS[homeSection] || HELPS.home;
+}
+
 function helpHidden() { try { return localStorage.getItem('planner.helpHidden') === '1'; } catch { return false; } }
 function hideHelp() { try { localStorage.setItem('planner.helpHidden', '1'); } catch { /* 存不了就只在这次隐藏 */ } }
 
@@ -1897,7 +1938,8 @@ document.addEventListener('click', async (e) => {
     plans.unshift(np); curId = np.id; tab = 'overview'; touch(np); render(); scrollTo(0, 0); return;
   }
   if (act === 'help') {
-    const box = modal(`<h2>怎么用</h2>${HELP_STEPS}<p class="hint">活动当天：在「4 计分」录成绩，点「大屏展示」投到屏幕上。<br>资料只存在这台设备里，换手机前点首页的「备份全部」。</p><div class="row"><span class="spacer"></span><button class="btn primary" data-act="req-close">知道了</button></div>`);
+    const h = currentHelp();
+    modal(`<h2>${h.title}</h2><ol class="help">${h.steps.map(([t, d]) => `<li><b>${t}</b><span>${d}</span></li>`).join('')}</ol>${h.tips ? `<p class="hint">${h.tips}</p>` : ''}<div class="row"><span class="spacer"></span><button class="btn primary" data-act="req-close">知道了</button></div>`);
     return;
   }
   if (act === 'help-hide') { hideHelp(); render(); return; }
