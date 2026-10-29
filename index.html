@@ -1377,7 +1377,7 @@ const HELPS = {
   ], tips: '转文字要联网。把手机放在桌子中间、靠近说话的人；看「手机听到的声音」那条，一直很短就挪近一点。' },
   ppt: { title: 'PPT 怎么用', steps: [
     ['新建', '粘贴文字（空一行就是新的一页），或者导入 Word（按标题分页），也可以空白开始，或从活动生成。'],
-    ['逐页修改', '每页上面是预览，下面改文字。能换版式、插手机里的照片、调整顺序、复制和删除。顶部可以整套换配色。'],
+    ['逐页修改', '每页上面是预览，下面改文字。能换版式、调整顺序、复制和删除。想放照片，点每页底部的「＋ 插入图片」。顶部可以整套换配色。'],
     ['改错了不怕', '底部的「撤销」能退回上一步。从 Word 或文字生成的页，点「查看原文」能看到并恢复原来的内容。'],
     ['下载', '点「下载 PPT」，再点「下载并打开」，用 WPS 打开就能放映和继续编辑。'],
   ], tips: '用「|」隔开的几行会变成表格；「名称 | 数字」的数据会自动变成条形图。' },
@@ -3213,7 +3213,7 @@ function slideEditor(s, i, n) {
         ${fields}
       </div>
     </div>
-    <div class="row"><button class="btn small ghost" data-dact="add" data-id="${s.id}">＋ 在后面加一页</button><span class="spacer"></span>${s.orig ? `<button class="btn small ${slideChanged(s) ? 'changed' : 'ghost'}" data-dact="orig" data-id="${s.id}" id="orig-${s.id}">${slideChanged(s) ? '查看原文（已修改）' : '查看原文'}</button>` : ''}</div>
+    <div class="row"><button class="btn small ghost" data-dact="add" data-id="${s.id}">＋ 在后面加一页</button>${s.layout === 'image' ? '' : `<label class="btn small ghost">＋ 插入图片<input type="file" accept="image/*" data-simg="${s.id}" hidden></label>`}<span class="spacer"></span>${s.orig ? `<button class="btn small ${slideChanged(s) ? 'changed' : 'ghost'}" data-dact="orig" data-id="${s.id}" id="orig-${s.id}">${slideChanged(s) ? '查看原文（已修改）' : '查看原文'}</button>` : ''}</div>
   </section>`;
 }
 
@@ -3366,11 +3366,23 @@ document.addEventListener('change', async (e) => {
   }
   if (el.dataset.simg && el.files[0]) {
     const d = curDeck();
-    const s = d?.slides.find((x) => x.id === el.dataset.simg);
+    let s = d?.slides.find((x) => x.id === el.dataset.simg);
     if (!s) return;
     try {
       const { data } = await shrinkImage(el.files[0]);
       remember(d);
+      // 不是图片页：文字页直接改成「图片 + 文字」，文字保留；封面、结束页、表格、图表就在后面加一页图片页
+      if (s.layout !== 'image') {
+        if (['bullets', 'two', 'numbers', 'section'].includes(s.layout)) {
+          if (s.layout === 'two') s.points = [s.lt, s.points, s.rt, s.right].filter((x) => String(x || '').trim()).join('\n');
+          if (s.layout === 'section' && s.sub) s.points = s.sub;
+          s.layout = 'image';
+        } else {
+          const ns = newSlide('image', { title: s.layout === 'cover' || s.layout === 'end' ? '' : s.title });
+          d.slides.splice(d.slides.indexOf(s) + 1, 0, ns);
+          s = ns;
+        }
+      }
       s.image = 'img' + newId();
       imgCache[s.image] = data;
       await imgPut(s.image, data);
