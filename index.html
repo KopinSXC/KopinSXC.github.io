@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#1d7a50">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="活动策划">
+<meta name="apple-mobile-web-app-title" content="妙妙小工具">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
@@ -14,7 +14,7 @@
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style>
 </head>
 <body>
-<title>活动策划工具箱</title>
+<title>妙妙小工具</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1038,7 +1038,7 @@ async function xlsxBlob(sheets) {
   zip.file('xl/styles.xml', styles);
   sheets.forEach((s, i) => zip.file(`xl/worksheets/sheet${i + 1}.xml`, sheetXml(s)));
   zip.file('docProps/core.xml', `${XML}<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:creator>活动策划工具箱</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString().replace(/\.\d+Z$/, 'Z')}</dcterms:created></cp:coreProperties>`);
-  zip.file('docProps/app.xml', `${XML}<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>活动策划工具箱</Application></Properties>`);
+  zip.file('docProps/app.xml', `${XML}<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>妙妙小工具</Application></Properties>`);
   return zip.generateAsync({ type: 'blob', mimeType: MIME.xlsx, compression: 'DEFLATE' });
 }
 
@@ -1301,7 +1301,7 @@ async function proposalDocx(doc) {
     'word/settings.xml': `${XML}<w:settings ${W}><w:defaultTabStop w:val="420"/><w:characterSpacingControl w:val="compressPunctuation"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`,
     'word/document.xml': `${XML}<w:document ${W}><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="851" w:footer="992" w:gutter="0"/></w:sectPr></w:body></w:document>`,
     'docProps/core.xml': `${XML}<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${x(doc.title)}</dc:title><dc:creator>活动策划工具箱</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString().replace(/\.\d+Z$/, 'Z')}</dcterms:created></cp:coreProperties>`,
-    'docProps/app.xml': `${XML}<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>活动策划工具箱</Application></Properties>`,
+    'docProps/app.xml': `${XML}<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>妙妙小工具</Application></Properties>`,
   };
   const zip = new JSZip();
   for (const [name, content] of Object.entries(files)) zip.file(name, content);
@@ -1384,7 +1384,7 @@ function hideHelp() { try { localStorage.setItem('planner.helpHidden', '1'); } c
 function topBar(back) {
   const backBtn = back === 'tools' ? '<button class="btn ghost small" data-act="section" data-sec="">← 全部工具</button>'
     : back ? `<button class="btn ghost small" data-act="home">← ${curDeckId ? 'PPT' : curMeetingId ? '会议' : '活动策划'}</button>` : '';
-  return `<header class="top"><div class="brand">${backBtn}<h1>${back === 'tools' ? ({ meetings: '会议', feedback: '意见反馈', fbstats: '反馈统计', ppt: 'PPT' }[homeSection] || '活动策划') : '活动策划工具箱'}</h1></div><div class="row"><span class="save" id="save"></span><button class="btn small ghost" data-act="help">帮助</button></div></header>`;
+  return `<header class="top"><div class="brand">${backBtn}<h1>${back === 'tools' ? ({ meetings: '会议', feedback: '意见反馈', fbstats: '反馈统计', ppt: 'PPT' }[homeSection] || '活动策划') : '妙妙小工具'}</h1></div><div class="row"><span class="save" id="save"></span><button class="btn small ghost" data-act="help">帮助</button></div></header>`;
 }
 
 /* 首页的工具入口；以后加新工具就在这里加一项 */
@@ -2631,7 +2631,7 @@ function feedbackView() {
 
 function feedbackText() {
   const d = fbDraft();
-  const lines = ['【活动策划工具箱 · 使用反馈】', `填写时间：${ymd(new Date())}`];
+  const lines = [FB_HEAD, `填写时间：${ymd(new Date())}`];
   FEEDBACK_QS.forEach((q, i) => {
     let v = d[q.id];
     if (Array.isArray(v)) v = v.join('、');
@@ -2693,7 +2693,9 @@ document.addEventListener('click', async (e) => {
 });
 
 /* ---------- 反馈汇总统计：把微信里收到的反馈粘贴进来，自动识别、统计、画图。数据只存在这台设备 ---------- */
-const FB_HEAD = '【活动策划工具箱 · 使用反馈】';
+const FB_HEAD = '【妙妙小工具 · 使用反馈】';
+// 改名前填的反馈开头是旧名字，也要认得
+const FB_HEAD_RE = /【(?:妙妙小工具|活动策划工具箱) · 使用反馈】/;
 const FBS_KEY = 'planner.feedback.collected';
 function fbCollected() { try { return JSON.parse(localStorage.getItem(FBS_KEY) || '[]'); } catch { return []; } }
 function fbStore(list) { try { localStorage.setItem(FBS_KEY, JSON.stringify(list)); } catch { toast('存不下了，请先导出 Excel 再清空一部分'); } }
@@ -2701,7 +2703,7 @@ const fbTitle = (q) => q.q.replace(/（.*?）/g, '');
 
 // 识别一段或多段反馈文字；按题目文字对应，不依赖题号，以后增删题目也能认旧的反馈
 function parseFeedback(raw) {
-  const parts = String(raw || '').replace(/\r/g, '').split(FB_HEAD).slice(1);
+  const parts = String(raw || '').replace(/\r/g, '').split(FB_HEAD_RE).slice(1);
   return parts.map((part) => {
     const rec = {};
     const date = /填写时间：(\S+)/.exec(part);

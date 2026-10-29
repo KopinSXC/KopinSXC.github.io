@@ -1,7 +1,7 @@
 {
-  "name": "活动策划工具箱",
-  "short_name": "活动策划",
-  "description": "校园活动策划：自动排流程和分组、现场计分、预算分工、生成 Word 策划案。",
+  "name": "妙妙小工具",
+  "short_name": "妙妙小工具",
+  "description": "活动策划、会议记录、PPT、意见反馈，一个就够。",
   "lang": "zh-CN",
   "start_url": "./",
   "scope": "./",
