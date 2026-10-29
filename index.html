@@ -191,6 +191,10 @@
   .rec-btn { min-height: 56px; padding: 12px 22px; font-size: 17px; font-weight: 700; background: var(--bad); border-color: var(--bad); color: #fff; border-radius: 999px; }
   .rec-btn.stop { background: var(--ink); border-color: var(--ink); color: var(--bg); }
   .speakers .chip { min-height: 40px; padding: 6px 14px; font-size: 15px; }
+  .mic { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; }
+  .mic-bar { height: 10px; border-radius: 5px; background: var(--line); overflow: hidden; }
+  .mic-bar i { display: block; height: 100%; width: 0; background: var(--field); border-radius: 5px; transition: width .08s linear; }
+  .bad-tip { color: var(--warn); }
   .interim { min-height: 1.6em; color: var(--muted); font-style: italic; }
   .lines { display: grid; gap: 6px; max-height: 60vh; overflow-y: auto; }
   .line { display: grid; grid-template-columns: 52px 96px minmax(0, 1fr) auto; gap: 8px; align-items: start; padding: 6px; border-radius: 8px; border: 1px solid var(--line); }
@@ -2056,13 +2060,45 @@ function startRecognition() {
   try { rec.start(); live.rec = rec; } catch { /* 上一次还没完全结束，onend 会重试 */ }
 }
 
+/* 音量条：让人看到手机有没有听清。条一直很短，说明离说话的人太远 */
+function startMeter(stream) {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    ctx.resume?.();
+    const an = ctx.createAnalyser();
+    an.fftSize = 1024;
+    ctx.createMediaStreamSource(stream).connect(an);
+    const buf = new Uint8Array(an.fftSize);
+    live.meter = { ctx };
+    let quietFor = 0;
+    const tick = () => {
+      if (!live.on || live.meter?.ctx !== ctx) return;
+      an.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (const v of buf) { const d = (v - 128) / 128; sum += d * d; }
+      const pct = Math.min(100, Math.round(Math.sqrt(sum / buf.length) * 500));
+      const el = $('#mic-level');
+      if (el) el.style.width = pct + '%';
+      quietFor = pct < 6 ? quietFor + 1 : 0;
+      const tip = $('#mic-tip');
+      if (tip) tip.hidden = quietFor < 600;
+      requestAnimationFrame(tick);
+    };
+    tick();
+  } catch { live.meter = null; }
+}
+
 async function startLive(m, { transcribe, record }) {
   if (live.on) return;
   Object.assign(live, { on: true, m, startedAt: Date.now(), base: m.elapsed || 0, chunks: [], srOk: false, speaker: live.speaker || '' });
   setLiveStatus(transcribe && SR ? '正在听…说话后几秒会出现文字' : '正在记录…');
   if (record && navigator.mediaDevices?.getUserMedia && window.MediaRecorder) {
     try {
-      live.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // 关掉降噪和回声消除：它们会把小声、离得远的话当成噪音滤掉；打开自动增益，把小声放大
+      live.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } });
+      startMeter(live.stream);
       const mime = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].find((t) => MediaRecorder.isTypeSupported?.(t)) || '';
       live.recorder = new MediaRecorder(live.stream, mime ? { mimeType: mime } : undefined);
       live.mime = live.recorder.mimeType || mime || 'audio/mp4';
@@ -2099,6 +2135,8 @@ async function stopLive() {
     await new Promise((res) => { live.recorder.onstop = res; live.recorder.stop(); });
   }
   live.stream?.getTracks().forEach((t) => t.stop());
+  try { live.meter?.ctx.close(); } catch { /* 已经关了 */ }
+  live.meter = null;
   if (live.chunks.length) {
     const blob = new Blob(live.chunks, { type: live.mime });
     const key = `${m.id}:${Date.now()}`;
@@ -2277,6 +2315,9 @@ function meetingRecordTab(m) {
       <div class="row speakers">${['', ...names].map((n) => `<button class="chip ${live.speaker === n ? 'on' : ''}" data-mact="speaker" data-name="${esc(n)}">${n ? esc(n) : '未指定'}</button>`).join('')}</div>
       <form class="row add-speaker" id="add-speaker-form"><input type="text" id="add-speaker" placeholder="加一个发言人，输入名字" aria-label="发言人名字" style="flex:1;min-width:0"><button class="btn small" type="submit">＋ 添加</button></form>
     </div>
+    ${live.on && live.stream ? `<div class="mic"><span class="hint">手机听到的声音</span><div class="mic-bar"><i id="mic-level"></i></div></div>
+      <p class="hint bad-tip" id="mic-tip" hidden>声音一直很小：把手机挪到桌子中间、靠近说话的人。</p>` : ''}
+    ${live.on ? '' : '<p class="hint">小技巧：把手机放在桌子中间、靠近说话的人。小声说话识别不到时，可以试试关掉「同时录音」再录。</p>'}
     <p class="interim" id="interim"></p>
   </section>
   <section class="panel">
