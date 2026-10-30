@@ -3394,6 +3394,57 @@ function composeSlide(s, deck) {
      imageFrame(th, ib), drawMarker(th, x, y, size, n), drawCard(th, x, y, w, h, i), cardAlign,  // 可选
    };
    图元只能用 R / O / TRI / DIA / HL / VL / TX，页面 13.333 × 7.5 英寸。 */
+// 2026-10-29：包豪斯——红黄蓝三原色 + 圆、方、三角的几何构成，米白底，粗黑线分区
+{
+  const K = '1A1A1A'; const RED = 'E63A2E'; const YEL = 'F2B705'; const BLU = '1D4E9E';
+  const shape = (i, x, y, d) => [R(x, y, d, d, RED), O(x, y, d, d, YEL), TRI(x, y, d, d, BLU)][i % 3];
+  THEMES.d20261029 = {
+    name: '包豪斯 · 构成', daily: '2026-10-29',
+    main: K, soft: 'F1E6CF', accent: RED, bg: 'F4EFE6', text: K, muted: '5E5A53', line: 'D9D0C0', head: '黑体', body: '微软雅黑', marker: 'square', card: 'paper',
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, th.bg)];
+      E.push(R(8.9, 0, SW - 8.9, 4.2, BLU), TRI(11.2, 2.2, 1.6, 1.6, th.bg), O(7.4, 2.6, 4.2, 4.2, YEL), R(10.9, 4.6, 1.7, 1.7, RED));
+      E.push(R(7.6, 0.7, 0.16, 2.6, K), O(12.1, 0.55, 0.55, 0.55, K), HL(7.4, 6.95, 5.4, K, 1.5));
+      E.push(R(0.9, 0.95, 0.22, 0.22, RED), TX(1.25, 0.85, 5, 0.4, '汇报 / REPORT', { size: 12, color: th.muted, font: th.body, cs: 2 }));
+      E.push(TX(0.9, 1.7, 6.2, 3.0, title, { size: fitPt(title, 6.2, 3.0, 46, 26, 1.1), bold: true, color: K, font: th.head, valign: 'bottom', ls: 1.1 }));
+      E.push(R(0.9, 4.9, 1.6, 0.14, K), R(2.5, 4.9, 0.6, 0.14, RED));
+      if (s.sub) E.push(TX(0.9, 5.2, 6.2, 0.75, s.sub, { size: fitPt(s.sub, 6.2, 0.75, 22, 14, 1.2), color: th.muted, font: th.body }));
+      if (s.foot) E.push(TX(0.9, 6.5, 6.2, 0.4, s.foot, { size: 13, color: K, font: th.body }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, th.bg), O(-1.6, 0.9, 6.2, 6.2, YEL), R(4.1, 0.9, 0.9, 0.9, RED), TRI(3.5, 5.4, 1.4, 1.4, BLU)];
+      E.push(TX(0.2, 2.3, 4.0, 2.6, pad2(no), { size: 120, bold: true, color: K, font: th.head, align: 'center', valign: 'middle', ls: 1 }));
+      E.push(TX(5.7, 2.4, SW - 6.5, 1.8, t, { size: fitPt(t, SW - 6.5, 1.8, 44, 24, 1.15), bold: true, color: K, font: th.head, valign: 'bottom', ls: 1.15 }));
+      E.push(R(5.7, 4.4, 2.2, 0.12, K), R(7.9, 4.4, 0.5, 0.12, BLU));
+      if (s.sub) E.push(TX(5.7, 4.7, SW - 6.5, 0.7, s.sub, { size: fitPt(s.sub, SW - 6.5, 0.7, 20, 13, 1.2), color: th.muted, font: th.body }));
+      return E;
+    },
+    end(th, s) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, K), O(9.2, -1.0, 5.0, 5.0, YEL), R(10.6, 4.4, 2.0, 2.0, RED), TRI(8.0, 4.9, 2.6, 2.6, BLU)];
+      E.push(TX(0.9, 2.2, 7.4, 1.7, t, { size: fitPt(t, 7.4, 1.7, 60, 28, 1.1), bold: true, color: 'FFFFFF', font: th.head, valign: 'bottom', ls: 1.1 }));
+      E.push(R(0.9, 4.1, 1.6, 0.14, YEL), R(2.5, 4.1, 0.6, 0.14, RED));
+      if (s.sub) E.push(TX(0.9, 4.4, 7.4, 0.7, s.sub, { size: fitPt(s.sub, 7.4, 0.7, 22, 14, 1.2), color: 'C9C2B6', font: th.body }));
+      return E;
+    },
+    frame(th, s, deck, page) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, th.bg), R(SW - 0.6, 0, 0.6, 0.9, BLU), O(SW - 0.95, 0.68, 0.45, 0.45, YEL)];
+      E.push(R(0.7, 0.62, 0.32, 0.32, RED), O(1.08, 0.62, 0.32, 0.32, YEL), TRI(1.46, 0.62, 0.32, 0.32, BLU));
+      E.push(TX(2.05, 0.4, SW - 3.3, 0.78, t, { size: fitPt(t, SW - 3.3, 0.78, 28, 16, 1.1), bold: true, color: K, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(R(0.7, 1.3, SW - 1.4, 0.06, K));
+      E.push(R(0.7, SH - 0.62, SW - 1.4, 0.02, K), TX(0.7, SH - 0.52, 9, 0.3, deck.title, { size: 10, color: th.muted, font: th.body }));
+      E.push(R(SW - 1.2, SH - 0.53, 0.5, 0.3, K), TX(SW - 1.2, SH - 0.53, 0.5, 0.3, pad2(page), { size: 10, bold: true, color: 'FFFFFF', font: th.body, align: 'center', valign: 'middle', ls: 1 }));
+      return { E, body: { x: 0.7, y: 1.65, w: SW - 1.4, h: 4.95 } };
+    },
+    imageFrame: (th, ib) => [O(ib.x - 0.35, ib.y - 0.35, 0.9, 0.9, YEL), R(ib.x, ib.y + ib.h + 0.1, 1.6, 0.12, K), R(ib.x + 1.6, ib.y + ib.h + 0.1, 0.5, 0.12, RED)],
+    drawMarker: (th, x, y, size, n) => [shape(n - 1, x, y + size * 0.15, size)],
+    drawCard: (th, x, y, w, h, i) => [R(x + 0.1, y + 0.1, w, h, K), R(x, y, w, h, 'FFFFFF', { line: K, lw: 1.5 }), shape(i, x + 0.35, y + 0.32, 0.42), TX(x + w - 1.35, y + 0.22, 1.0, 0.6, pad2(i + 1), { size: 22, bold: true, color: K, font: th.head, align: 'right', ls: 1 })],
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
