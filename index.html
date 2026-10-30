@@ -2110,6 +2110,7 @@ function splitSentences(text) {
 }
 
 function setLiveStatus(msg, bad) {
+  live.status = { msg, bad: Boolean(bad) };
   const el = $('#live-status');
   if (el) { el.textContent = msg; el.classList.toggle('bad', Boolean(bad)); }
 }
@@ -2129,6 +2130,7 @@ function startRecognition() {
     }
     const el = $('#interim');
     if (el) el.textContent = interim;
+    if (!live.srOk) setLiveStatus('正在听，说的话会变成文字');
     live.srOk = true;
   };
   rec.onerror = (e) => {
@@ -2138,12 +2140,31 @@ function startRecognition() {
     } else if (e.error === 'network') {
       setLiveStatus('语音识别需要联网。现在只录音，你也可以手动打字记录。', true);
     } else if (e.error === 'audio-capture') {
-      setLiveStatus('麦克风被占用，转文字暂停。可以关掉「同时录音」再试。', true);
+      setLiveStatus('麦克风被占用，转文字暂停。可以点下面「改成只转文字」。', true);
+      showSrOnly();
+    } else if (e.error !== 'no-speech' && e.error !== 'aborted') {
+      setLiveStatus(`转文字出了点问题（${e.error}），正在自动重试…`, true);
     }
   };
   // iPhone 上识别过一会儿会自己停，会议还在进行就重新开始
   rec.onend = () => { if (live.on && live.rec === rec) setTimeout(() => live.on && live.rec === rec && startRecognition(), 300); };
   try { rec.start(); live.rec = rec; } catch { /* 上一次还没完全结束，onend 会重试 */ }
+}
+
+function showSrOnly() { const b = $('#sr-only'); if (b && live.recorder) b.hidden = false; }
+// 停掉录音（已经录到的会保留），让转文字独占麦克风
+async function switchToSrOnly() {
+  if (live.recorder && live.recorder.state !== 'inactive') await new Promise((res) => { live.recorder.onstop = res; live.recorder.stop(); });
+  live.recorder = null;
+  live.stream?.getTracks().forEach((t) => t.stop());
+  live.stream = null;
+  try { live.meter?.ctx.close(); } catch { /* 已经关了 */ }
+  live.meter = null;
+  const b = $('#sr-only');
+  if (b) b.hidden = true;
+  setLiveStatus('已改成只转文字，前面录到的声音会保留。请继续说话…');
+  try { live.rec?.abort(); } catch { /* 已经停了 */ }
+  if (!live.rec) startRecognition();
 }
 
 /* 音量条：让人看到手机有没有听清。条一直很短，说明离说话的人太远 */
@@ -2178,13 +2199,29 @@ function startMeter(stream) {
 
 async function startLive(m, { transcribe, record }) {
   if (live.on) return;
-  Object.assign(live, { on: true, m, startedAt: Date.now(), base: m.elapsed || 0, chunks: [], srOk: false, speaker: live.speaker || '' });
+  Object.assign(live, { on: true, m, startedAt: Date.now(), base: m.elapsed || 0, chunks: [], srOk: false, speaker: live.speaker || '', status: null });
   setLiveStatus(transcribe && SR ? '正在听…说话后几秒会出现文字' : '正在记录…');
+  // 先开转文字，再开录音。iPhone 上两个同时用麦克风容易打架，顺序反了转文字会收不到声音
+  if (transcribe) {
+    if (SR) startRecognition();
+    else setLiveStatus('这个浏览器不支持语音转文字。请用 iPhone 上的 Safari 打开，或者手动打字记录。', true);
+  }
+  // 半分钟还没出一个字：多半是录音和转文字抢麦克风，给一个一键改成只转文字的按钮
+  if (transcribe && SR) {
+    const at = live.startedAt;
+    setTimeout(() => {
+      if (!live.on || live.startedAt !== at || live.srOk || live.status?.bad) return;
+      if (live.recorder) { setLiveStatus('半分钟了还没出文字。这台手机可能不能一边录音一边转文字，点下面「改成只转文字」试试。', true); showSrOnly(); }
+      else setLiveStatus('还没识别到文字。靠近手机说话试试；一直没有的话，看看 iPhone「设置 → Safari → 麦克风」是不是允许了。', true);
+    }, 30000);
+  }
   if (record && navigator.mediaDevices?.getUserMedia && window.MediaRecorder) {
     try {
-      // 关掉降噪和回声消除：它们会把小声、离得远的话当成噪音滤掉；打开自动增益，把小声放大
-      live.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } });
-      startMeter(live.stream);
+      // 只录音时：关掉降噪和回声消除、打开自动增益，小声也录得到，并显示音量条。
+      // 同时转文字时用默认设置：改了这些设置，iPhone 会把麦克风切到另一种模式，转文字就听不到了
+      const solo = !(transcribe && SR);
+      live.stream = await navigator.mediaDevices.getUserMedia({ audio: solo ? { echoCancellation: false, noiseSuppression: false, autoGainControl: true } : true });
+      if (solo) startMeter(live.stream);
       const mime = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].find((t) => MediaRecorder.isTypeSupported?.(t)) || '';
       live.recorder = new MediaRecorder(live.stream, mime ? { mimeType: mime } : undefined);
       live.mime = live.recorder.mimeType || mime || 'audio/mp4';
@@ -2194,10 +2231,6 @@ async function startLive(m, { transcribe, record }) {
       setLiveStatus('没能打开麦克风录音。可以继续转文字或手动记录。', true);
       live.recorder = null;
     }
-  }
-  if (transcribe) {
-    if (SR) startRecognition();
-    else setLiveStatus('这个浏览器不支持语音转文字。请用 iPhone 上的 Safari 打开，或者手动打字记录。', true);
   }
   try { live.wake = await navigator.wakeLock?.request('screen'); } catch { live.wake = null; }
   live.timer = setInterval(() => {
@@ -2393,7 +2426,7 @@ function meetingRecordTab(m) {
   const prefs = recordPrefs();
   return `<section class="panel live ${live.on ? 'on' : ''}">
     <div class="live-head">
-      <div><div class="live-clock mono" id="live-clock">${fmtClock(liveElapsed())}</div><p class="hint" id="live-status">${live.on ? '正在记录…' : m.lines.length ? '已暂停。点「继续记录」接着记。' : '准备好了就点开始。开会时屏幕会保持常亮。'}</p></div>
+      <div><div class="live-clock mono" id="live-clock">${fmtClock(liveElapsed())}</div><p class="hint ${live.on && live.status?.bad ? 'bad' : ''}" id="live-status">${live.on ? esc(live.status?.msg || '正在记录…') : m.lines.length ? '已暂停。点「继续记录」接着记。' : '准备好了就点开始。开会时屏幕会保持常亮。'}</p></div>
       ${live.on ? '<button class="btn rec-btn stop" data-mact="stop">■ 停止记录</button>' : `<button class="btn rec-btn" data-mact="start">● ${m.lines.length ? '继续记录' : '开始记录'}</button>`}
     </div>
     ${live.on ? '' : `<div class="row"><label class="inc"><input type="checkbox" id="pref-sr" ${prefs.sr ? 'checked' : ''}> 自动转文字</label><label class="inc"><input type="checkbox" id="pref-rec" ${prefs.rec ? 'checked' : ''}> 同时录音</label></div>`}
@@ -2401,7 +2434,8 @@ function meetingRecordTab(m) {
       <div class="row speakers">${['', ...names].map((n) => `<button class="chip ${live.speaker === n ? 'on' : ''}" data-mact="speaker" data-name="${esc(n)}">${n ? esc(n) : '未指定'}</button>`).join('')}</div>
       <form class="row add-speaker" id="add-speaker-form"><input type="text" id="add-speaker" placeholder="加一个发言人，输入名字" aria-label="发言人名字" style="flex:1;min-width:0"><button class="btn small" type="submit">＋ 添加</button></form>
     </div>
-    ${live.on && live.stream ? `<div class="mic"><span class="hint">手机听到的声音</span><div class="mic-bar"><i id="mic-level"></i></div></div>
+    ${live.on && live.recorder ? '<button class="btn small" data-mact="sronly" id="sr-only" hidden>改成只转文字</button>' : ''}
+    ${live.on && live.meter ? `<div class="mic"><span class="hint">手机听到的声音</span><div class="mic-bar"><i id="mic-level"></i></div></div>
       <p class="hint bad-tip" id="mic-tip" hidden>声音一直很小：把手机挪到桌子中间、靠近说话的人。</p>` : ''}
     ${live.on ? '' : '<p class="hint">小技巧：把手机放在桌子中间、靠近说话的人。小声说话识别不到时，可以试试关掉「同时录音」再录。</p>'}
     <p class="interim" id="interim"></p>
@@ -2514,6 +2548,7 @@ document.addEventListener('click', async (e) => {
   if (act === 'tab') { if (live.on && b.dataset.tab !== 'record' && !(await confirmBox('正在记录。离开这一页记录会继续，确定吗？', '继续'))) return; mtab = b.dataset.tab; renderMeeting(); if (b.closest('.stepnav')) scrollTo(0, 0); return; }
   if (act === 'start') { const prefs = { sr: $('#pref-sr')?.checked ?? true, rec: $('#pref-rec')?.checked ?? true }; saveRecordPrefs(prefs); startLive(m, { transcribe: prefs.sr, record: prefs.rec }); return; }
   if (act === 'stop') { stopLive(); return; }
+  if (act === 'sronly') { switchToSrOnly(); return; }
   if (act === 'speaker') {
     live.speaker = b.dataset.name;
     document.querySelectorAll('.speakers .chip').forEach((c) => c.classList.toggle('on', c.dataset.name === live.speaker));
