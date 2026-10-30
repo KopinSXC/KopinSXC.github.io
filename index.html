@@ -2138,7 +2138,7 @@ function startRecognition() {
   };
   rec.onerror = (e) => {
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-      setLiveStatus('没有麦克风或语音识别权限。请在 iPhone「设置 → Safari → 麦克风」里允许，或者手动打字记录。', true);
+      setLiveStatus('没有麦克风或语音识别权限。请在 iPhone「设置 → Safari → 麦克风」里允许，并打开「设置 → 通用 → 键盘 → 启用听写」，或者手动打字记录。', true);
       live.rec = null;
     } else if (e.error === 'network') {
       setLiveStatus('语音识别需要联网。现在只录音，你也可以手动打字记录。', true);
@@ -2193,6 +2193,9 @@ function startMeter(stream) {
       const el = $('#mic-level');
       if (el) el.style.width = pct + '%';
       quietFor = pct < 6 ? quietFor + 1 : 0;
+      const now = performance.now();
+      if (pct >= 10) live.loud = (live.loud || 0) + Math.min(200, now - (live.meter.last || now));
+      live.meter.last = now;
       const tip = $('#mic-tip');
       if (tip) tip.hidden = quietFor < 600;
       requestAnimationFrame(tick);
@@ -2203,21 +2206,35 @@ function startMeter(stream) {
 
 async function startLive(m, { transcribe, record }) {
   if (live.on) return;
-  Object.assign(live, { on: true, m, startedAt: Date.now(), base: m.elapsed || 0, chunks: [], srOk: false, speaker: live.speaker || '', status: null, recFrom: null, recTo: null });
+  Object.assign(live, { on: true, m, startedAt: Date.now(), base: m.elapsed || 0, chunks: [], srOk: false, speaker: live.speaker || '', status: null, recFrom: null, recTo: null, loud: 0 });
   setLiveStatus(transcribe && SR ? '正在听…说话后几秒会出现文字' : '正在记录…');
   // 先开转文字，再开录音。iPhone 上两个同时用麦克风容易打架，顺序反了转文字会收不到声音
   if (transcribe) {
     if (SR) startRecognition();
     else setLiveStatus('这个浏览器不支持语音转文字。请用 iPhone 上的 Safari 打开，或者手动打字记录。', true);
   }
-  // 半分钟还没出一个字：多半是录音和转文字抢麦克风，给一个一键改成只转文字的按钮
+  // 20 秒还没出一个字：
+  //   手机明明听到了声音 → 是 iPhone 上录音和转文字抢麦克风，自动改成只转文字（已录的保留），以后也默认这样
+  //   没听到什么声音 → 提示靠近一点
   if (transcribe && SR) {
     const at = live.startedAt;
-    setTimeout(() => {
-      if (!live.on || live.startedAt !== at || live.srOk || live.status?.bad) return;
-      if (live.recorder) { setLiveStatus('半分钟了还没出文字。这台手机可能不能一边录音一边转文字，点下面「改成只转文字」试试。', true); showSrOnly(); }
-      else setLiveStatus('还没识别到文字。靠近手机说话试试；一直没有的话，看看 iPhone「设置 → Safari → 麦克风」是不是允许了。', true);
-    }, 30000);
+    const alive = () => live.on && live.startedAt === at && !live.srOk;
+    setTimeout(async () => {
+      if (!alive() || live.status?.bad) return;
+      if (live.recorder && live.loud > 1500) { // 累计有 1.5 秒以上明显的声音
+        await switchToSrOnly();
+        saveRecordPrefs({ ...recordPrefs(), rec: false });
+        setLiveStatus('手机听到了声音却没出文字：这台手机不能一边录音一边转文字，已自动改成只转文字（前面的录音保留）。以后开会也默认只转文字。');
+        setTimeout(() => {
+          if (alive()) setLiveStatus('还是没出文字：请打开 iPhone「设置 → 通用 → 键盘 → 启用听写」，并让手机离说话的人近一些。', true);
+        }, 25000);
+      } else if (live.recorder) {
+        setLiveStatus('还没出文字。如果有人在说话，点下面「改成只转文字」试试。', true);
+        showSrOnly();
+      } else {
+        setLiveStatus('还没识别到文字。靠近手机说话试试；一直没有的话，打开 iPhone「设置 → 通用 → 键盘 → 启用听写」，并在「设置 → Safari → 麦克风」里允许。', true);
+      }
+    }, 20000);
   }
   if (record && navigator.mediaDevices?.getUserMedia && window.MediaRecorder) {
     try {
