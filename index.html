@@ -219,6 +219,8 @@
   .live.on .live-clock { color: var(--bad); }
   #live-status.bad { color: var(--bad); }
   .rec-btn { min-height: 56px; padding: 12px 22px; font-size: 17px; font-weight: 700; background: var(--bad); border-color: var(--bad); color: #fff; border-radius: 999px; }
+  .lt-play { border: 0; background: var(--field-soft, #e3f1e9); color: var(--field); border-radius: 6px; padding: 2px 4px; font: inherit; font-size: 12px; cursor: pointer; }
+  .line.unclear { border-color: var(--marker); background: var(--marker-soft, #fff6d8); }
   .rec-btn.stop { background: var(--ink); border-color: var(--ink); color: var(--bg); }
   .speakers .chip { min-height: 40px; padding: 6px 14px; font-size: 15px; }
   .mic { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; }
@@ -2083,6 +2085,7 @@ async function audioDel(key) { const db = await audioDb(); return new Promise((r
 /* 正在进行的记录：语音识别 + 录音 + 计时 */
 const live = { on: false, m: null, rec: null, recorder: null, stream: null, chunks: [], startedAt: 0, base: 0, timer: null, speaker: '', wake: null, mime: '', srOk: false };
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const UNCLEAR = '（没听清，会后回听补上）';
 
 function liveElapsed() { return live.on ? live.base + (Date.now() - live.startedAt) : (curMeeting()?.elapsed || 0); }
 
@@ -2156,6 +2159,7 @@ function showSrOnly() { const b = $('#sr-only'); if (b && live.recorder) b.hidde
 async function switchToSrOnly() {
   if (live.recorder && live.recorder.state !== 'inactive') await new Promise((res) => { live.recorder.onstop = res; live.recorder.stop(); });
   live.recorder = null;
+  live.recTo = liveElapsed();
   live.stream?.getTracks().forEach((t) => t.stop());
   live.stream = null;
   try { live.meter?.ctx.close(); } catch { /* 已经关了 */ }
@@ -2199,7 +2203,7 @@ function startMeter(stream) {
 
 async function startLive(m, { transcribe, record }) {
   if (live.on) return;
-  Object.assign(live, { on: true, m, startedAt: Date.now(), base: m.elapsed || 0, chunks: [], srOk: false, speaker: live.speaker || '', status: null });
+  Object.assign(live, { on: true, m, startedAt: Date.now(), base: m.elapsed || 0, chunks: [], srOk: false, speaker: live.speaker || '', status: null, recFrom: null, recTo: null });
   setLiveStatus(transcribe && SR ? '正在听…说话后几秒会出现文字' : '正在记录…');
   // 先开转文字，再开录音。iPhone 上两个同时用麦克风容易打架，顺序反了转文字会收不到声音
   if (transcribe) {
@@ -2217,11 +2221,10 @@ async function startLive(m, { transcribe, record }) {
   }
   if (record && navigator.mediaDevices?.getUserMedia && window.MediaRecorder) {
     try {
-      // 只录音时：关掉降噪和回声消除、打开自动增益，小声也录得到，并显示音量条。
-      // 同时转文字时用默认设置：改了这些设置，iPhone 会把麦克风切到另一种模式，转文字就听不到了
-      const solo = !(transcribe && SR);
-      live.stream = await navigator.mediaDevices.getUserMedia({ audio: solo ? { echoCancellation: false, noiseSuppression: false, autoGainControl: true } : true });
-      if (solo) startMeter(live.stream);
+      // 关掉降噪和回声消除、打开自动增益：小声、离得远的话也录得进去（转文字没听清的，事后可以回听补上）
+      live.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } });
+      startMeter(live.stream);
+      live.recFrom = live.base;
       const mime = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].find((t) => MediaRecorder.isTypeSupported?.(t)) || '';
       live.recorder = new MediaRecorder(live.stream, mime ? { mimeType: mime } : undefined);
       live.mime = live.recorder.mimeType || mime || 'audio/mp4';
@@ -2261,7 +2264,7 @@ async function stopLive() {
     const key = `${m.id}:${Date.now()}`;
     try {
       await audioPut(key, blob);
-      m.audio.push({ key, mime: live.mime, size: blob.size, at: new Date().toISOString() });
+      m.audio.push({ key, mime: live.mime, size: blob.size, at: new Date().toISOString(), from: live.recFrom ?? null, to: live.recTo ?? m.elapsed });
     } catch { toast('录音没能保存，手机空间可能不够'); }
   }
   Object.assign(live, { recorder: null, stream: null, chunks: [], m: null });
@@ -2409,12 +2412,28 @@ function meetingInfoTab(m) {
   <section class="panel"><div class="row"><span class="spacer"></span><button class="btn small danger" data-mact="del">删除这个会议</button></div></section>`;
 }
 
+// 找到包含这个时间点的那段录音（老录音没有记时间，找不到就不显示回听）
+const audioAt = (m, t) => (m.audio || []).find((a) => a.from != null && a.to != null && t >= a.from && t <= a.to + 1000);
+async function seekAudio(m, t) {
+  const a = audioAt(m, t);
+  const el = a && document.querySelector(`audio[data-akey="${CSS.escape(a.key)}"]`);
+  if (!el) { toast('这段录音找不到了'); return; }
+  if (!el.src) {
+    const blob = await audioGet(a.key).catch(() => null);
+    if (!blob) { toast('这段录音找不到了'); return; }
+    el.src = URL.createObjectURL(blob);
+  }
+  const go = () => { el.currentTime = Math.max(0, (t - a.from) / 1000 - 2); el.play(); };
+  if (el.readyState >= 1) go(); else el.addEventListener('loadedmetadata', go, { once: true });
+  el.closest('.audio-row')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
 function lineHtml(m, l) {
   const names = attendeeList(m);
   const opts = ['', ...new Set([...names, l.speaker].filter(Boolean))];
   const tags = [['decision', '决定'], ['todo', '待办'], ['issue', '问题']];
-  return `<div class="line ${l.tag ? 'tag-' + l.tag : ''}" id="ln-${l.id}">
-    <span class="lt mono">${fmtClock(l.t)}</span>
+  return `<div class="line ${l.tag ? 'tag-' + l.tag : ''} ${l.text === UNCLEAR ? 'unclear' : ''}" id="ln-${l.id}">
+    ${audioAt(m, l.t) ? `<button class="lt mono lt-play" data-mact="seek" data-t="${l.t}" aria-label="从这里回听录音">▶ ${fmtClock(l.t)}</button>` : `<span class="lt mono">${fmtClock(l.t)}</span>`}
     <select class="ls" data-ml="${l.id}" data-k="speaker" aria-label="发言人">${opts.map((n) => `<option value="${esc(n)}" ${l.speaker === n ? 'selected' : ''}>${n ? esc(n) : '发言人'}</option>`).join('')}</select>
     <textarea class="ltext" rows="1" data-ml="${l.id}" data-k="text" placeholder="说的内容" aria-label="内容">${esc(l.text)}</textarea>
     <div class="ltags">${tags.map(([k, t]) => `<button class="chip ${l.tag === k ? 'on' : ''}" data-mact="tag" data-id="${l.id}" data-tag="${k}">${t}</button>`).join('')}<button class="x" data-mact="rmline" data-id="${l.id}" aria-label="删除">×</button></div>
@@ -2437,7 +2456,8 @@ function meetingRecordTab(m) {
     ${live.on && live.recorder ? '<button class="btn small" data-mact="sronly" id="sr-only" hidden>改成只转文字</button>' : ''}
     ${live.on && live.meter ? `<div class="mic"><span class="hint">手机听到的声音</span><div class="mic-bar"><i id="mic-level"></i></div></div>
       <p class="hint bad-tip" id="mic-tip" hidden>声音一直很小：把手机挪到桌子中间、靠近说话的人。</p>` : ''}
-    ${live.on ? '' : '<p class="hint">小技巧：把手机放在桌子中间、靠近说话的人。小声说话识别不到时，可以试试关掉「同时录音」再录。</p>'}
+    ${live.on ? '' : '<p class="hint">小技巧：把手机放在桌子中间、靠近说话的人。小声的话转文字可能漏掉：录音会把小声也录进去，没听清的地方点「这句没听清」做个记号，会后点那一条的时间就能回听补上。</p>'}
+    ${live.on ? '<button class="btn" data-mact="unclear">？ 这句没听清，先标记</button>' : ''}
     <p class="interim" id="interim"></p>
   </section>
   <section class="panel">
@@ -2549,6 +2569,8 @@ document.addEventListener('click', async (e) => {
   if (act === 'start') { const prefs = { sr: $('#pref-sr')?.checked ?? true, rec: $('#pref-rec')?.checked ?? true }; saveRecordPrefs(prefs); startLive(m, { transcribe: prefs.sr, record: prefs.rec }); return; }
   if (act === 'stop') { stopLive(); return; }
   if (act === 'sronly') { switchToSrOnly(); return; }
+  if (act === 'unclear') { addLine(m, UNCLEAR); toast('已标记，会后点这一条的时间就能回听'); return; }
+  if (act === 'seek') { seekAudio(m, Number(b.dataset.t)); return; }
   if (act === 'speaker') {
     live.speaker = b.dataset.name;
     document.querySelectorAll('.speakers .chip').forEach((c) => c.classList.toggle('on', c.dataset.name === live.speaker));
