@@ -3519,6 +3519,69 @@ function composeSlide(s, deck) {
     drawCard: (th, x, y, w, h, i) => [R(x + 0.1, y + 0.1, w, h, K), R(x, y, w, h, 'FFFFFF', { line: K, lw: 1.5 }), shape(i, x + 0.35, y + 0.32, 0.42), TX(x + w - 1.35, y + 0.22, 1.0, 0.6, pad2(i + 1), { size: 22, bold: true, color: K, font: th.head, align: 'right', ls: 1 })],
   };
 }
+// 2026-10-30：复古报纸——米黄新闻纸、双线报头、宋体大标题、分栏细线、红色印章
+{
+  const K = '2B2722'; const RED = 'B23A2A'; const FAINT = 'D3C8B2';
+  const rules = (y, w = SW - 1.6, x = 0.8) => [HL(x, y, w, K, 2.25), HL(x, y + 0.09, w, K, 0.6)];
+  // 装饰用的「正文」灰线，模拟报纸分栏里的文字
+  const faux = (x, y, w, n) => Array.from({ length: n }, (_, i) => R(x, y + i * 0.2, w * [1, 0.94, 0.98, 0.9, 0.62][i % 5], 0.06, FAINT));
+  THEMES.d20261030 = {
+    name: '复古报纸 · 号外', daily: '2026-10-30',
+    main: K, soft: 'EAE1CD', accent: RED, bg: 'F4EEE1', text: K, muted: '6E655A', line: 'C2B6A0', head: '宋体', body: '微软雅黑', marker: 'dash', card: 'rule',
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, th.bg)];
+      E.push(TX(0.8, 0.32, 4, 0.3, '第 1 期', { size: 10, color: th.muted, font: th.body }), TX(SW / 2 - 2.5, 0.3, 5, 0.32, '特  刊  ·  SPECIAL', { size: 11, bold: true, color: RED, font: th.head, align: 'center', cs: 2 }), TX(SW - 4.8, 0.32, 4, 0.3, `${new Date().getFullYear()} 年`, { size: 10, color: th.muted, font: th.body, align: 'right' }));
+      E.push(...rules(0.68));
+      E.push(TX(0.8, 1.05, SW - 1.6, 2.7, title, { size: fitPt(title, SW - 1.6, 2.7, 66, 30, 1.1), bold: true, color: K, font: th.head, align: 'center', valign: 'middle', ls: 1.1 }));
+      E.push(HL(0.8, 3.92, SW - 1.6, K, 0.6), HL(0.8, 4.01, SW - 1.6, K, 2.25));
+      if (s.sub) E.push(TX(1.5, 4.2, SW - 3, 0.6, s.sub, { size: fitPt(s.sub, SW - 3, 0.6, 20, 13, 1.2), color: th.muted, font: th.head, align: 'center' }));
+      E.push(...faux(0.8, 5.15, 3.5, 7), VL(4.6, 5.1, 1.5, th.line, 0.6), ...faux(4.9, 5.15, 3.5, 7), VL(8.7, 5.1, 1.5, th.line, 0.6));
+      E.push(R(9.15, 5.2, 3.35, 1.2, null, { line: RED, lw: 1.5 }), R(9.25, 5.3, 3.15, 1.0, null, { line: RED, lw: 0.5 }));
+      E.push(TX(9.3, 5.3, 3.05, 1.0, s.foot || deck.title || '', { size: fitPt(s.foot || deck.title || '', 2.9, 0.9, 16, 10, 1.2), bold: true, color: RED, font: th.body, align: 'center', valign: 'middle' }));
+      E.push(HL(0.8, 6.9, SW - 1.6, K, 0.6));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, th.bg), ...rules(0.68)];
+      E.push(TX(0.8, 0.32, 6, 0.3, deck.title, { size: 10, color: th.muted, font: th.body }));
+      E.push(TX(0.8, 1.7, 3.3, 1.5, `第${CN_NUM[(no - 1) % 10]}版`, { size: 54, bold: true, color: RED, font: th.head, align: 'center', valign: 'middle', ls: 1 }));
+      E.push(R(1.45, 3.35, 2.0, 0.06, RED), TX(0.8, 3.5, 3.3, 0.4, `SECTION ${pad2(no)}`, { size: 11, color: th.muted, font: th.body, align: 'center', cs: 3 }));
+      E.push(VL(4.5, 1.5, 3.9, K, 0.6));
+      E.push(TX(4.9, 1.5, SW - 5.7, 2.2, t, { size: fitPt(t, SW - 5.7, 2.2, 48, 24, 1.15), bold: true, color: K, font: th.head, valign: 'bottom', ls: 1.15 }));
+      E.push(HL(4.9, 3.85, SW - 5.7, K, 0.6));
+      if (s.sub) E.push(TX(4.9, 4.0, SW - 5.7, 0.6, s.sub, { size: fitPt(s.sub, SW - 5.7, 0.6, 20, 13, 1.2), color: th.muted, font: th.body }));
+      E.push(...faux(4.9, 4.8, (SW - 6.0) / 2, 4), ...faux(4.9 + (SW - 5.7) / 2 + 0.15, 4.8, (SW - 6.0) / 2, 4));
+      E.push(HL(0.8, 6.62, SW - 1.6, K, 0.6), HL(0.8, 6.71, SW - 1.6, K, 2.25));
+      return E;
+    },
+    end(th, s) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, th.bg), ...rules(1.3)];
+      E.push(TX(0.8, 1.7, SW - 1.6, 1.8, t, { size: fitPt(t, SW - 1.6, 1.8, 66, 30, 1.1), bold: true, color: K, font: th.head, align: 'center', valign: 'middle', ls: 1.1 }));
+      E.push(HL(0.8, 3.7, SW - 1.6, K, 0.6), HL(0.8, 3.79, SW - 1.6, K, 2.25));
+      if (s.sub) E.push(TX(1.5, 4.0, SW - 3, 0.6, s.sub, { size: fitPt(s.sub, SW - 3, 0.6, 20, 13, 1.2), color: th.muted, font: th.head, align: 'center' }));
+      E.push(O(SW / 2 - 0.6, 4.9, 1.2, 1.2, null, { line: RED, lw: 2 }), O(SW / 2 - 0.5, 5.0, 1.0, 1.0, null, { line: RED, lw: 0.6 }));
+      E.push(TX(SW / 2 - 0.6, 4.9, 1.2, 1.2, '完', { size: 30, bold: true, color: RED, font: th.head, align: 'center', valign: 'middle', ls: 1 }));
+      E.push(TX(0.8, 6.35, SW - 1.6, 0.35, '— 全 文 完 —', { size: 11, color: th.muted, font: th.body, align: 'center' }));
+      return E;
+    },
+    frame(th, s, deck, page) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, th.bg)];
+      E.push(TX(0.8, 0.3, 8, 0.3, deck.title, { size: 10, color: th.muted, font: th.body }), TX(SW - 3.3, 0.3, 2.5, 0.3, `第 ${page} 版`, { size: 10, bold: true, color: RED, font: th.head, align: 'right' }));
+      E.push(...rules(0.66));
+      E.push(TX(0.8, 0.9, SW - 1.6, 0.8, t, { size: fitPt(t, SW - 1.6, 0.8, 30, 16, 1.1), bold: true, color: K, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(HL(0.8, 1.8, SW - 1.6, th.line, 0.6));
+      E.push(HL(0.8, SH - 0.55, SW - 1.6, K, 0.6), TX(0.8, SH - 0.47, SW - 1.6, 0.3, '· · ·', { size: 10, color: th.muted, font: th.body, align: 'center' }));
+      return { E, body: { x: 0.8, y: 2.05, w: SW - 1.6, h: 4.7 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.08, ib.y - 0.08, ib.w + 0.16, ib.h + 0.16, null, { line: K, lw: 0.75 }), R(ib.x - 0.08, ib.y - 0.08, 0.7, 0.08, RED)],
+    drawMarker: (th, x, y, size, n) => [TX(x - 0.05, y + size * 0.02, 0.5, size * 1.6, `${n}.`, { size: Math.round(size * 72 * 1.35), bold: true, color: RED, font: th.head, ls: 1 })],
+    drawCard: (th, x, y, w, h, i) => [HL(x, y, w, K, 2.25), HL(x, y + 0.09, w, K, 0.6), TX(x, y + 0.25, w, 0.5, `第${CN_NUM[i] || i + 1}则`, { size: 18, bold: true, color: RED, font: th.head }), HL(x, y + h, w, th.line, 0.6)],
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
