@@ -3582,6 +3582,70 @@ function composeSlide(s, deck) {
     drawCard: (th, x, y, w, h, i) => [HL(x, y, w, K, 2.25), HL(x, y + 0.09, w, K, 0.6), TX(x, y + 0.25, w, 0.5, `第${CN_NUM[i] || i + 1}则`, { size: 18, bold: true, color: RED, font: th.head }), HL(x, y + h, w, th.line, 0.6)],
   };
 }
+// 2026-10-31：手账拼贴——方格本底纹、和纸胶带、便利贴、拍立得相框，标题用楷体像手写
+{
+  const INK = '3E5C8A'; const PINK = 'F2B3C1'; const MINT = 'A9D9C8'; const YEL = 'F6D88A'; const BG = 'FBF8F1'; const SHADOW = 'E6DECC';
+  const NOTES = ['FDF1C7', 'FBE1E6', 'DDF1EA'];
+  const TAPES = [PINK, MINT, YEL];
+  // 方格本：每 0.5 英寸一条浅线
+  const grid = () => [R(0, 0, SW, SH, BG), ...Array.from({ length: 26 }, (_, i) => VL((i + 1) * 0.5, 0, SH, 'EFE8DA', 0.5)), ...Array.from({ length: 14 }, (_, i) => HL(0, (i + 1) * 0.5, SW, 'EFE8DA', 0.5))];
+  // 和纸胶带：两头剪成锯齿
+  const tape = (x, y, w, h, c) => [R(x, y, w, h, c), DIA(x - 0.07, y, 0.14, h / 2, BG), DIA(x - 0.07, y + h / 2, 0.14, h / 2, BG), DIA(x + w - 0.07, y, 0.14, h / 2, BG), DIA(x + w - 0.07, y + h / 2, 0.14, h / 2, BG)];
+  const note = (x, y, w, h, c = 'FFFFFF') => [R(x + 0.1, y + 0.12, w, h, SHADOW), R(x, y, w, h, c)];
+  THEMES.d20261031 = {
+    name: '手账 · 拼贴', daily: '2026-10-31',
+    main: INK, soft: 'FCEFC7', accent: 'E88AA0', bg: BG, text: '33363D', muted: '7A7468', line: 'E3DACA', head: '楷体', body: '微软雅黑', marker: 'dot', card: 'paper',
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [...grid()];
+      E.push(...note(1.2, 1.3, 7.8, 4.7), ...tape(4.1, 1.05, 2.0, 0.5, PINK));
+      E.push(TX(1.7, 1.9, 6.8, 2.3, title, { size: fitPt(title, 6.8, 2.3, 48, 26, 1.15), bold: true, color: INK, font: th.head, valign: 'bottom', ls: 1.15 }));
+      E.push(R(1.7, 4.35, 2.6, 0.14, YEL), O(4.45, 4.32, 0.2, 0.2, PINK));
+      if (s.sub) E.push(TX(1.7, 4.65, 6.8, 0.7, s.sub, { size: fitPt(s.sub, 6.8, 0.7, 20, 13, 1.2), color: th.muted, font: th.body }));
+      E.push(...note(9.7, 1.0, 2.8, 2.6, NOTES[0]), ...tape(10.4, 0.82, 1.4, 0.38, MINT));
+      const memo = s.foot || '今天也要加油';
+      E.push(TX(9.95, 1.35, 2.3, 2.0, memo, { size: fitPt(memo, 2.3, 2.0, 20, 11, 1.3), color: th.text, font: th.head, valign: 'middle', align: 'center', ls: 1.3 }));
+      E.push(O(10.2, 4.3, 1.9, 1.9, null, { line: th.accent, lw: 2 }), O(10.35, 4.45, 1.6, 1.6, null, { line: th.accent, lw: 0.6 }));
+      E.push(TX(10.2, 4.65, 1.9, 0.5, 'MEMO', { size: 16, bold: true, color: th.accent, font: th.body, align: 'center', cs: 2, ls: 1 }), TX(10.2, 5.15, 1.9, 0.45, String(new Date().getFullYear()), { size: 13, color: th.accent, font: th.body, align: 'center', ls: 1 }));
+      E.push(O(1.35, 6.45, 0.3, 0.3, MINT), O(1.8, 6.45, 0.3, 0.3, PINK), O(2.25, 6.45, 0.3, 0.3, YEL));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [...grid()];
+      E.push(R(0, 2.1, 3.4, 2.0, NOTES[(no - 1) % 3]), R(3.4, 2.1, 0.12, 2.0, TAPES[(no - 1) % 3]));
+      E.push(TX(0.3, 2.1, 2.9, 2.0, pad2(no), { size: 80, bold: true, color: INK, font: th.head, align: 'center', valign: 'middle', ls: 1 }));
+      E.push(...note(4.3, 1.9, 8.2, 2.4), ...tape(4.05, 1.72, 1.3, 0.4, YEL), ...tape(11.4, 4.05, 1.3, 0.4, MINT));
+      E.push(TX(4.8, 2.1, 7.2, 2.0, t, { size: fitPt(t, 7.2, 2.0, 44, 22, 1.15), bold: true, color: INK, font: th.head, valign: 'middle', ls: 1.15 }));
+      if (s.sub) E.push(TX(4.4, 4.75, 8.0, 0.6, s.sub, { size: fitPt(s.sub, 8.0, 0.6, 20, 13, 1.2), color: th.muted, font: th.body }));
+      return E;
+    },
+    end(th, s) {
+      const t = s.title || '谢谢！';
+      const E = [...grid()];
+      E.push(...note(3.0, 1.7, 7.33, 3.7), ...tape(2.75, 1.5, 1.4, 0.42, MINT), ...tape(9.2, 1.5, 1.4, 0.42, PINK));
+      E.push(TX(3.4, 2.1, 6.53, 1.8, t, { size: fitPt(t, 6.53, 1.8, 60, 28, 1.1), bold: true, color: INK, font: th.head, align: 'center', valign: 'middle', ls: 1.1 }));
+      E.push(R(SW / 2 - 1.2, 4.0, 2.4, 0.14, YEL));
+      if (s.sub) E.push(TX(3.4, 4.3, 6.53, 0.6, s.sub, { size: fitPt(s.sub, 6.53, 0.6, 20, 13, 1.2), color: th.muted, font: th.body, align: 'center' }));
+      E.push(O(SW / 2 - 0.55, 6.0, 0.3, 0.3, MINT), O(SW / 2 - 0.15, 6.0, 0.3, 0.3, PINK), O(SW / 2 + 0.25, 6.0, 0.3, 0.3, YEL));
+      return E;
+    },
+    frame(th, s, deck, page) {
+      const t = s.title || '';
+      const E = [...grid(), VL(0.62, 0, SH, 'F2B3B3', 1)];
+      for (let y = 0.6; y < SH; y += 1.25) E.push(O(0.18, y, 0.2, 0.2, SHADOW));
+      const pt = fitPt(t, SW - 2.4, 0.75, 28, 16, 1.1);
+      E.push(R(0.9, 0.62, Math.min(SW - 2.0, Math.max(1.5, (emWidth(t) * pt) / 72 + 0.45)), 0.5, YEL));
+      E.push(TX(1.05, 0.45, SW - 2.4, 0.75, t, { size: pt, bold: true, color: INK, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(TX(0.9, SH - 0.55, 8, 0.3, deck.title, { size: 10, color: th.muted, font: th.body }));
+      E.push(O(SW - 1.15, SH - 0.78, 0.5, 0.5, NOTES[page % 3], { line: INK, lw: 0.75 }), TX(SW - 1.15, SH - 0.78, 0.5, 0.5, String(page), { size: 12, bold: true, color: INK, font: th.body, align: 'center', valign: 'middle', ls: 1 }));
+      return { E, body: { x: 0.95, y: 1.55, w: SW - 1.85, h: 5.0 } };
+    },
+    imageFrame: (th, ib) => [...note(ib.x - 0.14, ib.y - 0.14, ib.w + 0.28, ib.h + 0.28), ...tape(ib.x + ib.w / 2 - 0.7, ib.y - 0.32, 1.4, 0.38, PINK)],
+    drawMarker: (th, x, y, size, n) => [O(x, y + size * 0.15, size, size, TAPES[(n - 1) % 3]), O(x + size * 0.3, y + size * 0.45, size * 0.4, size * 0.4, 'FFFFFF')],
+    drawCard: (th, x, y, w, h, i) => [...note(x, y, w, h, NOTES[i % 3]), ...tape(x + w / 2 - 0.6, y - 0.18, 1.2, 0.36, TAPES[(i + 1) % 3]), TX(x + 0.35, y + 0.3, 1.2, 0.5, `#${i + 1}`, { size: 20, bold: true, color: INK, font: th.head, ls: 1 })],
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
