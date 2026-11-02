@@ -3646,6 +3646,64 @@ function composeSlide(s, deck) {
     drawCard: (th, x, y, w, h, i) => [...note(x, y, w, h, NOTES[i % 3]), ...tape(x + w / 2 - 0.6, y - 0.18, 1.2, 0.36, TAPES[(i + 1) % 3]), TX(x + 0.35, y + 0.3, 1.2, 0.5, `#${i + 1}`, { size: 20, bold: true, color: INK, font: th.head, ls: 1 })],
   };
 }
+// 2026-11-01：水墨山水——宣纸底色、层层淡墨远山、一轮淡月、朱红印章、楷体题字
+{
+  const INK = '2F3437'; const RED = 'A8322D'; const PAPER = 'F7F5F0';
+  const BIG = ['壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖', '拾'];
+  // 山：两个直角三角形拼成一座山
+  const hill = (x, base, w, h, c) => [TRI(x, base - h, w / 2 + 0.03, h, c, { flipH: true }), TRI(x + w / 2 - 0.03, base - h, w / 2 + 0.03, h, c)];
+  // 印章：朱红方块里竖排两个字
+  const seal = (x, y, d, text) => [R(x, y, d, d, RED), R(x + d * 0.07, y + d * 0.07, d * 0.86, d * 0.86, null, { line: 'F3D9D2', lw: 0.6 }), TX(x, y, d, d, [...text].join('\n'), { size: Math.round(d * 72 * (text.length > 1 ? 0.38 : 0.6)), bold: true, color: 'FFFFFF', font: '楷体', align: 'center', valign: 'middle', ls: 1 })];
+  // 毛笔横线：一段粗，后面越来越细
+  const brush = (x, y, w) => [R(x, y, w * 0.55, 0.06, INK), R(x + w * 0.55, y + 0.012, w * 0.3, 0.036, '6E6A63'), R(x + w * 0.85, y + 0.022, w * 0.15, 0.016, 'A7A299')];
+  const range = (y0 = SH) => [...hill(6.2, y0, 6.4, 2.6, 'E2DED5'), ...hill(9.2, y0, 5.2, 3.6, 'C9C4BA'), ...hill(4.6, y0, 4.8, 1.9, 'A29E96'), ...hill(10.6, y0, 3.6, 2.1, '6E6A64'), ...hill(8.0, y0, 2.6, 1.1, '4A4744')];
+  THEMES.d20261101 = {
+    name: '水墨 · 山水', daily: '2026-11-01',
+    main: INK, soft: 'ECE9E2', accent: RED, bg: PAPER, text: '24282B', muted: '76726B', line: 'D8D3C8', head: '楷体', body: '微软雅黑', marker: 'dot', card: 'paper',
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, PAPER), O(8.9, 0.6, 3.2, 3.2, 'EDE6D8'), ...range()];
+      E.push(VL(0.75, 1.45, 2.3, INK, 2));
+      E.push(TX(1.05, 1.2, 6.9, 2.6, title, { size: fitPt(title, 6.9, 2.6, 50, 26, 1.2), bold: true, color: INK, font: th.head, valign: 'middle', ls: 1.2 }));
+      E.push(...brush(1.05, 3.95, 3.2));
+      if (s.sub) E.push(TX(1.05, 4.2, 6.5, 0.6, s.sub, { size: fitPt(s.sub, 6.5, 0.6, 20, 13, 1.2), color: th.muted, font: th.head }));
+      E.push(...seal(1.05, 5.05, 0.72, '汇报'));
+      if (s.foot) E.push(TX(1.95, 5.15, 4.0, 0.55, s.foot, { size: fitPt(s.foot, 4.0, 0.55, 14, 10, 1.2), color: th.muted, font: th.body, valign: 'middle' }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, PAPER), ...hill(7.5, SH, 6.5, 1.5, 'E8E4DC'), ...hill(10.4, SH, 3.6, 1.0, 'D6D1C8')];
+      E.push(O(1.0, 1.35, 4.3, 4.3, 'EFEBE3'), O(1.0, 1.35, 4.3, 4.3, null, { line: INK, lw: 4 }), O(1.35, 1.7, 3.6, 3.6, null, { line: 'B8B3AA', lw: 0.75 }));
+      E.push(TX(1.0, 1.35, 4.3, 4.3, BIG[(no - 1) % 10], { size: 110, bold: true, color: INK, font: th.head, align: 'center', valign: 'middle', ls: 1 }));
+      E.push(TX(6.1, 2.2, SW - 6.9, 1.9, t, { size: fitPt(t, SW - 6.9, 1.9, 46, 24, 1.2), bold: true, color: INK, font: th.head, valign: 'bottom', ls: 1.2 }));
+      E.push(...brush(6.1, 4.25, 3.0));
+      if (s.sub) E.push(TX(6.1, 4.5, SW - 6.9, 0.6, s.sub, { size: fitPt(s.sub, SW - 6.9, 0.6, 20, 13, 1.2), color: th.muted, font: th.head }));
+      E.push(...seal(SW - 1.5, 4.45, 0.6, BIG[(no - 1) % 10]));
+      return E;
+    },
+    end(th, s) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, PAPER), O(SW / 2 - 1.3, 0.8, 2.6, 2.6, 'EDE6D8'), ...range(), ...hill(-0.6, SH, 6.0, 2.2, 'D4CFC6'), ...hill(1.6, SH, 3.4, 1.3, '8E8A83')];
+      E.push(TX(0.8, 1.35, SW - 1.6, 1.6, t, { size: fitPt(t, SW - 1.6, 1.6, 64, 30, 1.1), bold: true, color: INK, font: th.head, align: 'center', valign: 'middle', ls: 1.1 }));
+      if (s.sub) E.push(TX(1.5, 3.0, SW - 3, 0.6, s.sub, { size: fitPt(s.sub, SW - 3, 0.6, 20, 13, 1.2), color: th.muted, font: th.head, align: 'center' }));
+      E.push(...seal(SW / 2 - 0.35, 3.75, 0.7, '再会'));
+      return E;
+    },
+    frame(th, s, deck, page, contentNo) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, PAPER), ...hill(SW - 3.3, SH, 2.4, 0.95, 'E6E2DA'), ...hill(SW - 2.1, SH, 2.4, 0.65, 'D8D3CA')];
+      E.push(...seal(0.8, 0.55, 0.5, contentNo <= 10 ? BIG[contentNo - 1] : String(contentNo)));
+      E.push(TX(1.5, 0.42, SW - 2.3, 0.78, t, { size: fitPt(t, SW - 2.3, 0.78, 28, 16, 1.1), bold: true, color: INK, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(...brush(0.8, 1.32, 3.6));
+      E.push(TX(0.8, SH - 0.5, 8, 0.3, `${deck.title}  ·  ${page}`, { size: 10, color: th.muted, font: th.body }));
+      return { E, body: { x: 0.8, y: 1.65, w: SW - 1.6, h: 4.95 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.1, ib.y - 0.1, ib.w + 0.2, ib.h + 0.2, 'FFFFFF', { line: 'D8D3C8', lw: 0.5 }), R(ib.x - 0.2, ib.y - 0.24, ib.w + 0.4, 0.12, INK), R(ib.x - 0.2, ib.y + ib.h + 0.12, ib.w + 0.4, 0.12, INK)],
+    drawMarker: (th, x, y, size, n) => [O(x, y + size * 0.15, size * 0.9, size * 0.9, null, { line: INK, lw: 1.25 }), O(x + size * 0.3, y + size * 0.45, size * 0.3, size * 0.3, n % 3 ? INK : RED)],
+    drawCard: (th, x, y, w, h, i) => [R(x, y, w, h, 'FFFFFF', { line: 'E2DDD3', lw: 0.6 }), ...brush(x, y, w * 0.6), TX(x + w - 1.0, y + 0.15, 0.75, 0.8, BIG[i % 10], { size: 30, bold: true, color: 'D8D3C8', font: th.head, align: 'right', ls: 1 }), R(x + 0.35, y + 0.42, 0.16, 0.16, RED)],
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
