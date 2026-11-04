@@ -3136,6 +3136,8 @@ const TRI = (x, y, w, h, fill, o = {}) => ({ k: 'tri', x, y, w, h, fill, ...o })
 const DIA = (x, y, w, h, fill) => ({ k: 'dia', x, y, w, h, fill });
 const HL = (x, y, w, color, lw = 1) => ({ k: 'hline', x, y, w, color, lw });
 const VL = (x, y, h, color, lw = 1) => ({ k: 'vline', x, y, h, color, lw });
+// 斜线：从 (x1, y1) 画到 (x2, y2)
+const LN = (x1, y1, x2, y2, color, lw = 1) => ({ k: 'ln', x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1), flip: (x2 - x1) * (y2 - y1) < 0, color, lw });
 const TX = (x, y, w, h, t, o = {}) => ({ k: 'text', x, y, w, h, t: String(t ?? ''), size: 18, align: 'left', valign: 'top', ls: 1.25, ...o });
 
 /* ---- 各风格的封面 ---- */
@@ -3466,8 +3468,9 @@ function composeSlide(s, deck) {
      cover(th, s, deck), section(th, s, deck, no), end(th, s, deck),   // 必须有：返回图元数组
      frame(th, s, deck, page, contentNo),             // 必须有：返回 { E: 图元数组, body: { x, y, w, h } }
      imageFrame(th, ib), drawMarker(th, x, y, size, n), drawCard(th, x, y, w, h, i), cardAlign,  // 可选
+     headFill, headText, rows: [单数行, 双数行], tableText,  // 可选：表格配色（深色底的风格用）
    };
-   图元只能用 R / O / TRI / DIA / HL / VL / TX，页面 13.333 × 7.5 英寸。 */
+   图元只能用 R / O / TRI / DIA / HL / VL / LN（斜线）/ TX，页面 13.333 × 7.5 英寸。 */
 // 2026-10-29：包豪斯——红黄蓝三原色 + 圆、方、三角的几何构成，米白底，粗黑线分区
 {
   const K = '1A1A1A'; const RED = 'E63A2E'; const YEL = 'F2B705'; const BLU = '1D4E9E';
@@ -3704,6 +3707,87 @@ function composeSlide(s, deck) {
     drawCard: (th, x, y, w, h, i) => [R(x, y, w, h, 'FFFFFF', { line: 'E2DDD3', lw: 0.6 }), ...brush(x, y, w * 0.6), TX(x + w - 1.0, y + 0.15, 0.75, 0.8, BIG[i % 10], { size: 30, bold: true, color: 'D8D3C8', font: th.head, align: 'right', ls: 1 }), R(x + 0.35, y + 0.42, 0.16, 0.16, RED)],
   };
 }
+// 2026-11-02：赛博星际——深空黑底、霓虹青粉、复古未来的条纹落日、透视网格地平线、六边形和电路线
+{
+  const BG = '070B1A'; const PANEL = '0D1530'; const CYAN = '22E3FF'; const MAG = 'FF3CAC'; const VIO = '8A5CFF'; const DIM = '1C2A55'; const PALE = '9AA6D6';
+  // 星星：固定位置，每次一样
+  const STARS = [[0.6, 0.5], [1.9, 1.1], [3.4, 0.35], [5.2, 0.8], [6.6, 0.3], [7.4, 1.4], [12.6, 0.6], [11.4, 0.25], [9.3, 0.45], [4.3, 1.6], [0.9, 2.6], [12.9, 2.2], [6.1, 2.4], [2.7, 3.4]];
+  const stars = (dy = 0) => STARS.map(([x, y], i) => O(x, y + dy, i % 3 ? 0.04 : 0.07, i % 3 ? 0.04 : 0.07, i % 4 ? 'C9D3FF' : CYAN));
+  // 霓虹线：粗的暗线 + 细的亮线，看起来在发光
+  const neon = (x1, y1, x2, y2, c) => [LN(x1, y1, x2, y2, c === CYAN ? '125A73' : '6A1E57', 4), LN(x1, y1, x2, y2, c, 1.25)];
+  // 复古未来落日：粉色大圆，下半部分被横条切开
+  const sun = (cx, cy, d) => [O(cx - d / 2, cy - d / 2, d, d, MAG), O(cx - d * 0.36, cy - d * 0.46, d * 0.72, d * 0.5, 'FF6FC2'), ...[0.12, 0.26, 0.38, 0.48].map((k, i) => R(cx - d / 2 - 0.05, cy + d * k, d + 0.1, 0.04 + i * 0.05, BG))];
+  // 透视网格地面：从地平线中心向下发散的线 + 越来越疏的横线
+  const floor = (top, vx) => {
+    const E = [R(0, top, SW, SH - top, '0A0F26')];
+    for (let i = -10; i <= 10; i++) E.push(LN(vx + i * 0.25, top, vx + i * 2.1, SH, i % 2 ? '3B1F7A' : VIO, 0.75));
+    [0.12, 0.3, 0.55, 0.9, 1.35, 1.95, 2.7].forEach((d) => { if (top + d < SH) E.push(HL(0, top + d, SW, '3B1F7A', 0.75)); });
+    E.push(HL(0, top, SW, CYAN, 1.5));
+    return E;
+  };
+  const hex = (cx, cy, r, c, lw) => { const p = Array.from({ length: 6 }, (_, i) => [cx + r * Math.cos(Math.PI / 6 + i * Math.PI / 3), cy + r * Math.sin(Math.PI / 6 + i * Math.PI / 3)]); return p.map((q, i) => LN(q[0], q[1], p[(i + 1) % 6][0], p[(i + 1) % 6][1], c, lw)); };
+  // 电路线：横、斜、横，末端一个小圆点
+  const trace = (x, y, len, drop, c) => [HL(x, y, len * 0.4, c, 1), LN(x + len * 0.4, y, x + len * 0.4 + Math.abs(drop), y + drop, c, 1), HL(x + len * 0.4 + Math.abs(drop), y + drop, len * 0.6 - Math.abs(drop), c, 1), O(x + len - 0.05, y + drop - 0.05, 0.1, 0.1, c)];
+  const corners = (x, y, w, h, c, len, lw = 1.25) => [HL(x, y, len, c, lw), VL(x, y, len, c, lw), HL(x + w - len, y, len, c, lw), VL(x + w, y, len, c, lw), HL(x, y + h, len, c, lw), VL(x, y + h - len, len, c, lw), HL(x + w - len, y + h, len, c, lw), VL(x + w, y + h - len, len, c, lw)];
+  const total = (deck, kind) => deck.slides.filter((x) => (kind ? x.layout === kind : true)).length;
+  THEMES.d20261102 = {
+    name: '赛博 · 星际', daily: '2026-11-02',
+    main: CYAN, soft: '111B3A', accent: MAG, bg: BG, text: 'E6ECFF', muted: '8C97C2', line: '2A3A6B', head: '黑体', body: '微软雅黑', marker: 'square', card: 'paper',
+    headFill: CYAN, headText: BG, rows: [PANEL, '111B3A'], tableText: 'E6ECFF',
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, BG), ...stars(), ...sun(10.2, 3.2, 3.6), ...floor(4.75, 10.2)];
+      E.push(...corners(0.35, 0.35, SW - 0.7, SH - 0.7, CYAN, 0.4));
+      E.push(TX(0.9, 0.85, 6, 0.35, '// MISSION BRIEFING', { size: 11, bold: true, color: CYAN, font: th.body, cs: 3 }));
+      E.push(TX(0.9, 1.25, 6.6, 2.3, title, { size: fitPt(title, 6.6, 2.3, 50, 24, 1.15), bold: true, color: 'FFFFFF', font: th.head, valign: 'bottom', ls: 1.15 }));
+      E.push(...neon(0.9, 3.72, 3.4, 3.72, CYAN), ...neon(3.55, 3.72, 4.2, 3.72, MAG));
+      if (s.sub) E.push(TX(0.9, 3.9, 6.6, 0.6, s.sub, { size: fitPt(s.sub, 6.6, 0.6, 20, 12, 1.2), color: PALE, font: th.body }));
+      if (s.foot) E.push(R(0.9, 5.75, 4.6, 0.62, PANEL, { line: CYAN, lw: 1 }), TRI(5.2, 5.75, 0.3, 0.3, BG, { flipH: true, flipV: true }), LN(5.2, 5.75, 5.5, 6.05, CYAN, 1), TX(1.1, 5.75, 4.1, 0.62, `▶ ${s.foot}`, { size: fitPt(`▶ ${s.foot}`, 4.1, 0.55, 14, 10, 1.2), color: 'E6ECFF', font: th.body, valign: 'middle' }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const n = Math.max(no, total(deck, 'section'));
+      const E = [R(0, 0, SW, SH, BG), ...stars(), ...corners(0.35, 0.35, SW - 0.7, SH - 0.7, DIM, 0.4)];
+      E.push(...hex(2.75, 3.4, 1.95, '1E3D6E', 6), ...hex(2.75, 3.4, 1.95, CYAN, 1.5), ...hex(2.75, 3.4, 1.55, MAG, 0.75));
+      E.push(TX(1.15, 2.4, 3.2, 2.0, pad2(no), { size: 96, bold: true, color: 'FFFFFF', font: th.head, align: 'center', valign: 'middle', ls: 1 }));
+      E.push(TX(5.5, 1.75, 5, 0.35, `// SECTOR ${pad2(no)}`, { size: 11, bold: true, color: MAG, font: th.body, cs: 3 }));
+      E.push(TX(5.5, 2.15, SW - 6.3, 1.9, t, { size: fitPt(t, SW - 6.3, 1.9, 44, 22, 1.15), bold: true, color: 'FFFFFF', font: th.head, valign: 'bottom', ls: 1.15 }));
+      E.push(...neon(5.5, 4.22, 8.0, 4.22, CYAN), ...neon(8.15, 4.22, 8.8, 4.22, MAG));
+      if (s.sub) E.push(TX(5.5, 4.4, SW - 6.3, 0.6, s.sub, { size: fitPt(s.sub, SW - 6.3, 0.6, 20, 12, 1.2), color: PALE, font: th.body }));
+      E.push(...trace(5.5, 5.55, 3.2, 0.35, VIO), ...trace(8.9, 5.9, 3.4, -0.3, '3B6BA8'));
+      E.push(R(5.5, 6.55, SW - 6.3, 0.05, DIM), R(5.5, 6.55, (SW - 6.3) * (no / n), 0.05, CYAN), TX(SW - 2.8, 6.18, 2.0, 0.3, `${pad2(no)} / ${pad2(n)}`, { size: 10, bold: true, color: CYAN, font: th.body, align: 'right' }));
+      return E;
+    },
+    end(th, s) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, BG), ...stars(), ...sun(SW / 2, 3.8, 3.4), ...floor(4.95, SW / 2), ...corners(0.35, 0.35, SW - 0.7, SH - 0.7, CYAN, 0.4)];
+      E.push(TX(0.8, 0.75, SW - 1.6, 1.3, t, { size: fitPt(t, SW - 1.6, 1.3, 60, 28, 1.1), bold: true, color: 'FFFFFF', font: th.head, align: 'center', valign: 'middle', ls: 1.1 }));
+      if (s.sub) E.push(TX(1.5, 1.95, SW - 3, 0.5, s.sub, { size: fitPt(s.sub, SW - 3, 0.5, 18, 12, 1.2), color: PALE, font: th.body, align: 'center' }));
+      E.push(TX(0.8, 6.75, SW - 1.6, 0.35, '// TRANSMISSION END', { size: 10, bold: true, color: CYAN, font: th.body, align: 'center', cs: 3 }));
+      return E;
+    },
+    frame(th, s, deck, page, contentNo) {
+      const t = s.title || '';
+      const pt = fitPt(t, SW - 3.95, 0.7, 28, 16, 1.1);
+      const tw = Math.min(SW - 2.6, Math.max(2.5, (emWidth(t) * pt) / 72 / 0.9 + 1.55));
+      const E = [R(0, 0, SW, SH, BG), ...STARS.slice(0, 6).map(([x, y]) => O(x * 0.9 + 1.5, y * 0.4 + 6.95, 0.035, 0.035, '4A5A8F'))];
+      // 标题栏：带切角的面板
+      E.push(R(0.6, 0.45, tw, 0.82, PANEL), TRI(0.6 + tw - 0.35, 0.45, 0.35, 0.35, BG, { flipH: true, flipV: true }));
+      E.push(LN(0.6, 0.45, 0.6 + tw - 0.35, 0.45, CYAN, 1), LN(0.6 + tw - 0.35, 0.45, 0.6 + tw, 0.8, CYAN, 1), LN(0.6 + tw, 0.8, 0.6 + tw, 1.27, CYAN, 1), HL(0.6, 1.27, tw, CYAN, 1), VL(0.6, 0.45, 0.82, CYAN, 1));
+      E.push(R(0.6, 0.45, 0.1, 0.82, MAG), TX(0.9, 0.5, 1.0, 0.72, pad2(contentNo), { size: 20, bold: true, color: MAG, font: th.body, valign: 'middle', ls: 1 }));
+      E.push(TX(1.6, 0.5, tw - 1.35, 0.72, t, { size: pt, bold: true, color: 'FFFFFF', font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(HL(0.6 + tw + 0.2, 0.86, SW - 1.4 - tw - 0.2, DIM, 1), O(SW - 0.85, 0.81, 0.1, 0.1, CYAN));
+      E.push(...corners(0.35, 0.35, SW - 0.7, SH - 0.7, DIM, 0.3, 1));
+      E.push(VL(SW - 0.55, 1.6, 4.9, DIM, 1.5), VL(SW - 0.55, 1.6, 4.9 * (page / total(deck)), CYAN, 1.5));
+      E.push(TX(0.8, SH - 0.62, 7, 0.3, deck.title, { size: 10, color: th.muted, font: th.body }), TX(SW - 3.0, SH - 0.62, 2.2, 0.3, `${pad2(page)} / ${pad2(total(deck))}`, { size: 10, bold: true, color: CYAN, font: th.body, align: 'right' }));
+      return { E, body: { x: 0.8, y: 1.65, w: SW - 1.75, h: 4.95 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.1, ib.y - 0.1, ib.w + 0.2, ib.h + 0.2, PANEL), ...corners(ib.x - 0.16, ib.y - 0.16, ib.w + 0.32, ib.h + 0.32, CYAN, 0.4, 1.5), R(ib.x + ib.w - 1.0, ib.y + ib.h + 0.08, 1.0, 0.05, MAG)],
+    drawMarker: (th, x, y, size, n) => [DIA(x - size * 0.1, y + size * 0.05, size * 1.2, size * 1.2, n % 2 ? CYAN : MAG)],
+    drawCard: (th, x, y, w, h, i) => [R(x, y, w, h, PANEL), TRI(x + w - 0.3, y, 0.3, 0.3, BG, { flipH: true, flipV: true }), HL(x, y, w - 0.3, i % 2 ? MAG : CYAN, 1.25), LN(x + w - 0.3, y, x + w, y + 0.3, i % 2 ? MAG : CYAN, 1.25), VL(x + w, y + 0.3, h - 0.3, DIM, 1), HL(x, y + h, w, DIM, 1), VL(x, y, h, DIM, 1), TX(x + 0.35, y + 0.28, 1.6, 0.4, `// ${pad2(i + 1)}`, { size: 12, bold: true, color: i % 2 ? MAG : CYAN, font: th.body, cs: 1 })],
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
@@ -3723,12 +3807,13 @@ function slidePreview(s, deck) {
       case 'dia': return `<div style="${box(e)};background:${c(e.fill)};clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)"></div>`;
       case 'hline': return `<div style="left:${P(e.x, SW)};top:${P(e.y, SH)};width:${P(e.w, SW)};height:${lw(e.lw)};background:#${e.color}"></div>`;
       case 'vline': return `<div style="left:${P(e.x, SW)};top:${P(e.y, SH)};height:${P(e.h, SH)};width:${lw(e.lw)};background:#${e.color}"></div>`;
+      case 'ln': { if (e.w < 0.005) return `<div style="left:${P(e.x, SW)};top:${P(e.y, SH)};height:${P(e.h, SH)};width:${lw(e.lw)};background:#${e.color}"></div>`; if (e.h < 0.005) return `<div style="left:${P(e.x, SW)};top:${P(e.y, SH)};width:${P(e.w, SW)};height:${lw(e.lw)};background:#${e.color}"></div>`; const w = Math.max(e.w, 0.001); const h = Math.max(e.h, 0.001); return `<div style="${box({ ...e, w, h })};overflow:visible"><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:100%;overflow:visible;display:block"><line x1="0" y1="${e.flip ? h : 0}" x2="${w}" y2="${e.flip ? 0 : h}" stroke="#${e.color}" stroke-width="${e.lw}" vector-effect="non-scaling-stroke" style="stroke-width:calc(${e.lw} * var(--pt))"/></svg></div>`; }
       case 'text': return `<div class="sv-t" style="${box(e)};font-size:calc(${e.size} * var(--pt));color:#${e.color};font-family:${FONT_CSS[e.font] || 'inherit'};font-weight:${e.bold ? 700 : 400};text-align:${e.align};justify-content:${{ top: 'flex-start', middle: 'center', bottom: 'flex-end' }[e.valign]};line-height:${e.ls};letter-spacing:${e.cs ? `calc(${e.cs} * var(--pt))` : 'normal'}">${esc(e.t).replace(/\n/g, '<br>')}</div>`;
       case 'img': return `<div style="${box(e)};background:${c(e.fill)};display:grid;place-items:center;overflow:hidden">${e.key && imgCache[e.key] ? `<img src="${imgCache[e.key]}" alt="" style="width:100%;height:100%;object-fit:contain">` : `<span style="font-size:calc(14 * var(--pt));color:#${th.muted}">点「插入图片」</span>`}</div>`;
       case 'table': {
         const { colW, size, rowH } = tableLayout(e);
         const shown = e.rows.slice(0, 10);
-        return `<div style="${box(e)};overflow:hidden"><table class="sv-table" style="font-size:calc(${size} * var(--pt));--l:#${th.line}">${shown.map((r, i) => `<tr>${colW.map((w, ci) => (i ? `<td style="height:calc(${rowH * 72} * var(--pt));width:${(w / e.w) * 100}%;background:${i % 2 ? '#fff' : '#' + th.soft};color:#${th.text}">${esc(r[ci] || '')}</td>` : `<th style="height:calc(${rowH * 72} * var(--pt));width:${(w / e.w) * 100}%;background:#${th.main};color:#fff">${esc(r[ci] || '')}</th>`)).join('')}</tr>`).join('')}</table>${e.rows.length > 10 ? `<p style="font-size:calc(11 * var(--pt));color:#${th.muted};margin:.4em 0 0">表格较长，PPT 里会自动续页</p>` : ''}</div>`;
+        return `<div style="${box(e)};overflow:hidden"><table class="sv-table" style="font-size:calc(${size} * var(--pt));--l:#${th.line}">${shown.map((r, i) => `<tr>${colW.map((w, ci) => (i ? `<td style="height:calc(${rowH * 72} * var(--pt));width:${(w / e.w) * 100}%;background:#${(th.rows || ['FFFFFF', th.soft])[i % 2 ? 0 : 1]};color:#${th.tableText || th.text}">${esc(r[ci] || '')}</td>` : `<th style="height:calc(${rowH * 72} * var(--pt));width:${(w / e.w) * 100}%;background:#${th.headFill || th.main};color:#${th.headText || 'FFFFFF'}">${esc(r[ci] || '')}</th>`)).join('')}</tr>`).join('')}</table>${e.rows.length > 10 ? `<p style="font-size:calc(11 * var(--pt));color:#${th.muted};margin:.4em 0 0">表格较长，PPT 里会自动续页</p>` : ''}</div>`;
       }
       case 'chart': {
         const max = Math.max(1, ...e.values);
@@ -3775,6 +3860,7 @@ async function deckPptx(deck) {
         case 'dia': sl.addShape(SH_.diamond, { ...pos, fill, line: { type: 'none' } }); break;
         case 'hline': sl.addShape(SH_.line, { x: e.x, y: e.y, w: e.w, h: 0, line: { color: e.color, width: e.lw } }); break;
         case 'vline': sl.addShape(SH_.line, { x: e.x, y: e.y, w: 0, h: e.h, line: { color: e.color, width: e.lw } }); break;
+        case 'ln': sl.addShape(SH_.line, { x: e.x, y: e.y, w: e.w, h: e.h, flipV: e.flip, line: { color: e.color, width: e.lw } }); break;
         case 'text': sl.addText(e.t, { ...pos, fontFace: e.font, fontSize: e.size, bold: !!e.bold, color: e.color, align: e.align, valign: e.valign, lineSpacingMultiple: e.ls, charSpacing: e.cs || 0, margin: 0, paraSpaceAfter: 0 }); break;
         case 'img': {
           const data = e.key && imgCache[e.key];
@@ -3788,7 +3874,7 @@ async function deckPptx(deck) {
         }
         case 'table': {
           const { colW, size, cols, rowH } = tableLayout(e);
-          const rows = e.rows.map((r, i) => Array.from({ length: cols }, (_, ci) => ({ text: r[ci] || '', options: i === 0 ? { bold: true, color: 'FFFFFF', fill: { color: th.main }, align: 'center' } : { color: th.text, fill: { color: i % 2 ? 'FFFFFF' : th.soft } } })));
+          const rows = e.rows.map((r, i) => Array.from({ length: cols }, (_, ci) => ({ text: r[ci] || '', options: i === 0 ? { bold: true, color: th.headText || 'FFFFFF', fill: { color: th.headFill || th.main }, align: 'center' } : { color: th.tableText || th.text, fill: { color: (th.rows || ['FFFFFF', th.soft])[i % 2 ? 0 : 1] } } })));
           sl.addTable(rows, { x: e.x, y: e.y, w: e.w, colW, rowH, fontFace: th.body, fontSize: size, valign: 'middle', margin: 0.07, border: { type: 'solid', pt: 0.5, color: th.line }, autoPage: true, autoPageRepeatHeader: true, autoPageHeaderRows: 1, newSlideStartY: 0.6 });
           break;
         }
