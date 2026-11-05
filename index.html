@@ -3868,6 +3868,100 @@ function composeSlide(s, deck) {
     drawCard: (th, x, y, w, h, i) => [R(x, y, w, h, 'FFFFFF', { line: 'E2E2DC', lw: 0.75 }), R(x, y, w, 0.1, i % 2 ? ORG : K), ...band(x + 0.35, y + 0.3, 0.82, 0.46, 0.18, LIME), TX(x + 0.35, y + 0.3, 1.0, 0.46, pad2(i + 1), { size: 16, bold: true, color: K, font: th.head, align: 'center', valign: 'middle', ls: 1 }), ...checker(x + w - 0.55, y + 0.25, 4, 2, 0.1)],
   };
 }
+// 2026-11-04：像素游戏——红白机关卡：天蓝背景、像素云、砖块地面、绿水管、问号砖、金币、红心生命、LEVEL 和 GAME CLEAR 画面
+{
+  const K = '111111'; const SKY = '5C94FC'; const RED = 'E52521'; const YEL = 'FBD000'; const GRN = '43B047'; const BRICK = 'C84C0C'; const NAVY = '1D2B53'; const W = 'FFFFFF';
+  // 用字符画像素图：同一行同颜色的格子合并成一个矩形
+  const pix = (x, y, u, rows, map) => {
+    const E = [];
+    rows.forEach((row, r) => {
+      let c = 0;
+      while (c < row.length) {
+        const ch = row[c];
+        let n = 1;
+        while (c + n < row.length && row[c + n] === ch) n++;
+        if (map[ch]) E.push(R(x + c * u, y + r * u, n * u + 0.002, u + 0.002, map[ch]));
+        c += n;
+      }
+    });
+    return E;
+  };
+  const HEART = ['.XX.XX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...'];
+  const CLOUD = ['....WWWW......', '..WWWWWWWW....', '.WWWWWWWWWWWW.', 'WWWWWWWWWWWWWW', '.WWWWWWWWWWWW.'];
+  const COIN = ['.OOOO.', 'OYYYYO', 'OYWYYO', 'OYWYYO', 'OYWYYO', 'OYWYYO', 'OYYYYO', '.OOOO.'];
+  const coin = (x, y, u) => pix(x, y, u, COIN, { O: 'B07800', Y: YEL, W: 'FFF6B0' });
+  const ARROW = ['X...', 'XX..', 'XXX.', 'XXXX', 'XXX.', 'XX..', 'X...'];
+  // 黑屏顶部一行状态栏：分数、金币数、关卡，和游戏里进关前的画面一样
+  const hud = (score, coins, world) => [TX(0.8, 0.35, 3.5, 0.4, score, { size: 14, bold: true, color: W, font: '微软雅黑', valign: 'middle' }), ...coin(SW / 2 - 0.62, 0.36, 0.045), TX(SW / 2 - 0.3, 0.35, 1.6, 0.4, `× ${coins}`, { size: 14, bold: true, color: W, font: '微软雅黑', valign: 'middle' }), TX(SW - 4.3, 0.35, 3.5, 0.4, world, { size: 14, bold: true, color: W, font: '微软雅黑', align: 'right', valign: 'middle' })];
+  const hearts = (x, y, u, n = 3) => Array.from({ length: n }, (_, i) => pix(x + i * u * 8.5, y, u, HEART, { X: RED })).flat();
+  // 像素方框：四个角缺一格，看起来像像素圆角
+  const pbox = (x, y, w, h, u, fill, line = K) => [R(x + u, y, w - 2 * u, h, line), R(x, y + u, w, h - 2 * u, line), R(x + u, y + u, w - 2 * u, h - 2 * u, fill), R(x + 2 * u, y + u, w - 4 * u, h - 2 * u, fill), R(x + u, y + 2 * u, w - 2 * u, h - 4 * u, fill)];
+  const qblock = (x, y, d, label = '?') => [...pbox(x, y, d, d, d / 12, YEL), R(x + d * 0.14, y + d * 0.14, d * 0.08, d * 0.08, K), R(x + d * 0.78, y + d * 0.14, d * 0.08, d * 0.08, K), R(x + d * 0.14, y + d * 0.78, d * 0.08, d * 0.08, K), R(x + d * 0.78, y + d * 0.78, d * 0.08, d * 0.08, K), TX(x, y, d, d, label, { size: Math.round(d * 72 * (label.length > 1 ? 0.4 : 0.6)), bold: true, color: '8B4A00', font: '黑体', align: 'center', valign: 'middle', ls: 1 })];
+  // 砖块地面
+  const bricks = (y, h = SH - y) => {
+    const E = [R(0, y, SW, h, BRICK)];
+    const bh = 0.25; const bw = 0.5;
+    for (let r = 0; r * bh < h; r++) {
+      E.push(HL(0, y + r * bh, SW, '6B2400', 1));
+      for (let c = 0; c * bw < SW + bw; c++) E.push(VL(c * bw + (r % 2 ? bw / 2 : 0), y + r * bh, Math.min(bh, h - r * bh), '6B2400', 1));
+    }
+    E.push(R(0, y, SW, 0.05, 'FFA060'));
+    return E;
+  };
+  const pipe = (x, y, w) => [R(x + 0.1, y + 0.5, w - 0.2, SH - y, GRN), R(x + 0.25, y + 0.5, 0.18, SH - y, '8FE07A'), R(x + w - 0.45, y + 0.5, 0.12, SH - y, '2A7A2E'), R(x, y, w, 0.55, GRN, { line: K, lw: 1.5 }), R(x + 0.15, y + 0.06, 0.18, 0.43, '8FE07A'), VL(x + 0.1, y + 0.55, SH - y, K, 1.5), VL(x + w - 0.1, y + 0.55, SH - y, K, 1.5)];
+  THEMES.d20261104 = {
+    name: '像素 · 游戏', daily: '2026-11-04',
+    main: NAVY, soft: 'FFF1C2', accent: RED, bg: 'FFF9EC', text: '1A1A1A', muted: '6A6458', line: 'D8CDB4', head: '黑体', body: '微软雅黑', marker: 'square', card: 'paper',
+    headFill: NAVY, headText: YEL,
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, SKY), ...pix(1.0, 1.3, 0.09, CLOUD, { W }), ...pix(8.2, 0.75, 0.11, CLOUD, { W }), ...pix(5.6, 5.2, 0.07, CLOUD, { W })];
+      E.push(TX(0.6, 0.25, 3.2, 0.4, 'SCORE  000100', { size: 14, bold: true, color: W, font: th.body }), TX(4.2, 0.25, 2.6, 0.4, 'WORLD 1-1', { size: 14, bold: true, color: W, font: th.body }), ...hearts(SW - 2.3, 0.3, 0.05));
+      E.push(...pbox(0.9, 2.15, 7.4, 2.75, 0.08, W), TX(1.3, 2.35, 6.6, 1.75, title, { size: fitPt(title, 6.6, 1.75, 44, 22, 1.15), bold: true, color: K, font: th.head, valign: 'middle', ls: 1.15 }));
+      if (s.sub) E.push(TX(1.3, 4.1, 6.6, 0.55, s.sub, { size: fitPt(s.sub, 6.6, 0.55, 18, 11, 1.2), color: '4A4A4A', font: th.body }));
+      E.push(...qblock(9.3, 2.6, 0.75), ...qblock(10.05, 2.6, 0.75), ...qblock(10.8, 2.6, 0.75), ...coin(11.0, 1.8, 0.07), ...coin(9.55, 1.95, 0.055), ...coin(12.25, 2.0, 0.055));
+      E.push(...pipe(11.4, 4.75, 1.3), ...bricks(6.25));
+      E.push(...pix(0.95, 5.47, 0.06, ARROW, { X: W }), TX(1.35, 5.35, 6, 0.65, s.foot ? s.foot : 'PRESS START', { size: fitPt(s.foot || 'PRESS START', 6, 0.6, 18, 11, 1.2), bold: true, color: W, font: th.body, valign: 'middle' }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, K)];
+      E.push(...hud(`SCORE ${String(no * 1000).padStart(6, '0')}`, pad2(no * 10), `WORLD 1-${no}`));
+      E.push(TX(0.8, 1.35, SW - 1.6, 0.9, `LEVEL ${pad2(no)}`, { size: 54, bold: true, color: YEL, font: th.body, align: 'center', valign: 'middle', cs: 4, ls: 1 }));
+      E.push(...pbox(SW / 2 - 4.2, 2.6, 8.4, 2.0, 0.08, K, W));
+      E.push(TX(SW / 2 - 3.8, 2.75, 7.6, 1.7, t, { size: fitPt(t, 7.6, 1.7, 40, 20, 1.15), bold: true, color: W, font: th.head, align: 'center', valign: 'middle', ls: 1.15 }));
+      if (s.sub) E.push(TX(1.5, 4.8, SW - 3, 0.5, s.sub, { size: fitPt(s.sub, SW - 3, 0.5, 18, 11, 1.2), color: 'B9B9B9', font: th.body, align: 'center' }));
+      E.push(...hearts(SW / 2 - 1.15, 5.6, 0.06), TX(SW / 2 + 0.4, 5.5, 1.2, 0.45, '× 3', { size: 20, bold: true, color: W, font: th.body, valign: 'middle' }));
+      return E;
+    },
+    end(th, s, deck) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, K)];
+      E.push(...hud('SCORE 999900', '99', 'WORLD CLEAR'));
+      E.push(TX(0.8, 1.0, SW - 1.6, 0.8, 'GAME CLEAR!', { size: 44, bold: true, color: YEL, font: th.body, align: 'center', valign: 'middle', cs: 4, ls: 1 }));
+      E.push(TX(0.8, 2.0, SW - 1.6, 1.6, t, { size: fitPt(t, SW - 1.6, 1.6, 60, 28, 1.1), bold: true, color: W, font: th.head, align: 'center', valign: 'middle', ls: 1.1 }));
+      if (s.sub) E.push(TX(1.5, 3.6, SW - 3, 0.5, s.sub, { size: fitPt(s.sub, SW - 3, 0.5, 18, 11, 1.2), color: 'B9B9B9', font: th.body, align: 'center' }));
+      E.push(TX(0.8, 4.35, SW - 1.6, 0.5, 'CONTINUE?', { size: 20, bold: true, color: W, font: th.body, align: 'center', cs: 3 }));
+      E.push(...pix(SW / 2 - 1.75, 5.0, 0.05, ARROW, { X: RED }), TX(SW / 2 - 1.45, 4.88, 1.2, 0.5, 'YES', { size: 18, bold: true, color: W, font: th.body, valign: 'middle' }), TX(SW / 2 + 0.6, 4.88, 1.2, 0.5, 'NO', { size: 18, bold: true, color: '6A6A6A', font: th.body, valign: 'middle' }));
+      E.push(...bricks(6.6));
+      return E;
+    },
+    frame(th, s, deck, page, contentNo) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, th.bg), R(0, 0, SW, 0.55, K)];
+      E.push(TX(0.6, 0.08, 2.5, 0.4, `LV.${pad2(contentNo)}`, { size: 14, bold: true, color: YEL, font: th.body, valign: 'middle' }), TX(SW / 2 - 2, 0.08, 4, 0.4, `SCORE ${String(page * 100).padStart(6, '0')}`, { size: 12, bold: true, color: W, font: th.body, align: 'center', valign: 'middle' }), ...hearts(SW - 2.0, 0.15, 0.035));
+      E.push(...qblock(0.6, 0.78, 0.68, String(contentNo)));
+      E.push(TX(1.5, 0.75, SW - 2.3, 0.75, t, { size: fitPt(t, SW - 2.3, 0.75, 28, 16, 1.1), bold: true, color: K, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(...Array.from({ length: Math.floor((SW - 1.2) / 0.2) }, (_, i) => R(0.6 + i * 0.2, 1.58, 0.1, 0.06, i % 2 ? RED : K)));
+      E.push(...bricks(SH - 0.4), TX(0.6, SH - 0.38, 8, 0.36, deck.title, { size: 10, bold: true, color: W, font: th.body, valign: 'middle' }), TX(SW - 2.6, SH - 0.38, 2.0, 0.36, `${pad2(page)} / ${pad2(deck.slides.length)}`, { size: 10, bold: true, color: W, font: th.body, align: 'right', valign: 'middle' }));
+      return { E, body: { x: 0.8, y: 1.85, w: SW - 1.6, h: 4.85 } };
+    },
+    imageFrame: (th, ib) => pbox(ib.x - 0.12, ib.y - 0.12, ib.w + 0.24, ib.h + 0.24, 0.06, W),
+    drawMarker: (th, x, y, size, n) => (n % 3 === 2 ? coin(x + size * 0.15, y - size * 0.05, size / 6) : pix(x, y + size * 0.05, size / 5, n % 3 === 1 ? HEART : ARROW, { X: n % 3 === 1 ? RED : NAVY })),
+    drawCard: (th, x, y, w, h, i) => [...pbox(x, y, w, h, 0.06, W), ...qblock(x + 0.3, y + 0.25, 0.5, String(i + 1))],
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
