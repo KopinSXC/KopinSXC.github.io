@@ -3962,6 +3962,115 @@ function composeSlide(s, deck) {
     drawCard: (th, x, y, w, h, i) => [...pbox(x, y, w, h, 0.06, W), ...qblock(x + 0.3, y + 0.25, 0.5, String(i + 1))],
   };
 }
+// 2026-11-05：剧场帷幕（按用户自己的美术手法：颗粒纸底、平涂圆形光、错版阴影、少色定含义、超大压字）——丝绒红幕（分层褶皱、金绑带流苏）、双层帷幔、分层聚光灯、木地板和脚灯；章节叫「第一幕」，结尾大幕合拢「剧终」；内容页像剧院节目单
+{
+  // 颜色各有含义：红=幕布和结构，金=重点文字，米白=正文，近黑=舞台；朱红是事件色，只标「现在第几幕/场/页」
+  const SHADE = '4A0A10'; const DARK = '5E0E15'; const RED = '9A1C24'; const MID = RED; const HI = RED;
+  const GOLD = 'D9AE52'; const LGOLD = GOLD; const STAGE = '17110D'; const CREAM = 'F3E3BF'; const PAPER = 'F2E8D2'; const VERM = 'E8502E';
+  // 颗粒：固定的伪随机小点，每次画出来一样
+  const grain = (x, y, w, h, c, n, seed = 1) => { let r = seed * 9301 + 49297; const rnd = () => ((r = (r * 9301 + 49297) % 233280) / 233280); return Array.from({ length: n }, () => R(x + rnd() * w, y + rnd() * h, 0.02 + rnd() * 0.02, 0.02 + rnd() * 0.015, c)); };
+  // 印刷裁切角标
+  const crops = (c, m = 0.22, l = 0.22) => [HL(m - l, m, l * 0.8, c, 0.6), VL(m, m - l, l * 0.8, c, 0.6), HL(SW - m + l * 0.2, m, l * 0.8, c, 0.6), VL(SW - m, m - l, l * 0.8, c, 0.6), HL(m - l, SH - m, l * 0.8, c, 0.6), VL(m, SH - m + l * 0.2, l * 0.8, c, 0.6), HL(SW - m + l * 0.2, SH - m, l * 0.8, c, 0.6), VL(SW - m, SH - m + l * 0.2, l * 0.8, c, 0.6)];
+  // 网点：一小块由大到小的圆点
+  const halftone = (x, y, cols, rows, d, c) => { const E = []; for (let r = 0; r < rows; r++) for (let k = 0; k < cols; k++) { const z = d * (1 - (r + k) / (rows + cols)) * 0.9; if (z > 0.015) E.push(O(x + k * d + (d - z) / 2, y + r * d + (d - z) / 2, z, z, c)); } return E; };
+  // 超大压字：先印一层错开的阴影字，再印正字
+  const press = (x, y, w, h, t, o, shadow = RED, dx = 0.05, dy = 0.05) => [TX(x + dx, y + dy, w, h, t, { ...o, color: shadow }), TX(x, y, w, h, t, o)];
+  const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+  // 一道褶子：暗—中—亮—中—暗，看起来是丝绒的立体感
+  // 一道褶子：红色底，阴影那层错开一点印上去（错版），不用渐变
+  const fold = (x, w, y, h) => [R(x, y, w + 0.01, h, RED), R(x + w * 0.58, y, w * 0.42 + 0.01, h, DARK), R(x + w * 0.58 - 0.035, y, 0.035, h, SHADE)];
+  const drape = (x, w, y, h, fw = 0.5) => { const n = Math.max(1, Math.round(w / fw)); const k = w / n; return Array.from({ length: n }, (_, i) => fold(x + i * k, k, y, h)).flat(); };
+  // 两边束起来的幕布：内侧边缘先收到绑带处，再往下散开
+  const sideCurtain = (left, w, tie, bg) => {
+    const cut = w * 0.45;
+    // 直接拼出幕布的形状：靠墙一侧是带褶子的长条，内侧是两块三角（先收后放）
+    const E = left
+      ? [...drape(0, w - cut, 0, SH, 0.48), ...drape(w - cut, cut, 0, 0.75, 0.48), TRI(w - cut, 0.75, cut, tie - 0.75, RED, { flipV: true }), TRI(w - cut, tie, cut, SH - tie, RED), LN(w, 0.75, w - cut, tie, SHADE, 2), LN(w - cut, tie, w, SH, SHADE, 2)]
+      : [...drape(SW - w + cut, w - cut, 0, SH, 0.48), ...drape(SW - w, cut, 0, 0.75, 0.48), TRI(SW - w, 0.75, cut, tie - 0.75, RED, { flipH: true, flipV: true }), TRI(SW - w, tie, cut, SH - tie, RED, { flipH: true }), LN(SW - w, 0.75, SW - w + cut, tie, SHADE, 2), LN(SW - w + cut, tie, SW - w, SH, SHADE, 2)];
+    const rx = left ? 0 : SW - w + cut;
+    E.push(R(rx, tie - 0.09, w - cut, 0.18, GOLD, { r: 0.08 }), R(rx, tie - 0.03, w - cut, 0.04, LGOLD));
+    const tx = left ? w - cut - 0.25 : SW - w + cut + 0.05;
+    E.push(O(tx, tie - 0.12, 0.24, 0.24, GOLD), TRI(tx - 0.02, tie + 0.08, 0.14, 0.55, GOLD, { flipH: true }), TRI(tx + 0.12, tie + 0.08, 0.14, 0.55, GOLD), R(tx + 0.06, tie + 0.6, 0.12, 0.05, LGOLD));
+    return E;
+  };
+  // 顶部帷幔：深色一层、红色一层扇形，金边加流苏
+  const valance = (h = 0.75) => {
+    const E = [R(0, 0, SW, h, DARK)];
+    for (let x = -0.3; x < SW; x += 0.9) E.push(O(x + 0.05, h - 0.47, 0.9, 0.75, SHADE), O(x, h - 0.52, 0.9, 0.75, RED));
+    E.push(R(0, h - 0.1, SW, 0.06, GOLD));
+    for (let x = 0.05; x < SW; x += 0.12) E.push(R(x, h - 0.04, 0.03, 0.12, GOLD));
+    return E;
+  };
+  // 聚光灯：三层光束由暗到亮
+  const beam = (cx, top, bottom, w0, w1, c) => [TRI(cx - w1 / 2, top, (w1 - w0) / 2, bottom - top, c, { flipH: true }), R(cx - w0 / 2 - 0.01, top, w0 + 0.02, bottom - top, c), TRI(cx + w0 / 2, top, (w1 - w0) / 2, bottom - top, c)];
+  // 光：一两层平涂的圆形亮区，不用模糊光晕
+  const spot = (cx, cy, d) => [O(cx - d / 2, cy - d / 2, d, d, '2A1F17'), O(cx - d * 0.33, cy - d * 0.33, d * 0.66, d * 0.66, '35281C')];
+  const stage = (y) => {
+    const E = [R(0, y, SW, SH - y, '3A2313')];
+    for (let i = -12; i <= 12; i++) E.push(LN(SW / 2 + i * 0.55, y, SW / 2 + i * 1.6, SH, '2A190D', 1));
+    E.push(R(0, y + 0.04, SW, 0.07, '6B4A1C'), R(0, y, SW, 0.07, GOLD));
+    for (let x = 0.5; x < SW; x += 0.75) E.push(O(x + 0.03, y - 0.06, 0.16, 0.12, '6B4A1C'), O(x, y - 0.09, 0.16, 0.12, GOLD));
+    return E;
+  };
+  const pool = (cx, y, w) => [O(cx - w / 2, y, w, 0.85, '5A3C20'), O(cx - w * 0.3, y + 0.15, w * 0.6, 0.5, '74502A')];
+  // 装饰分隔线：线—菱形—线
+  const orn = (cx, y, half, c = GOLD) => [HL(cx - half, y, half - 0.18, c, 1), DIA(cx - 0.1, y - 0.1, 0.2, 0.2, c), HL(cx + 0.18, y, half - 0.18, c, 1), DIA(cx - half - 0.06, y - 0.05, 0.1, 0.1, c), DIA(cx + half - 0.04, y - 0.05, 0.1, 0.1, c)];
+  THEMES.d20261105 = {
+    name: '剧场 · 帷幕', daily: '2026-11-05',
+    main: DARK, soft: 'F1E6CF', accent: GOLD, bg: PAPER, text: '2A1A14', muted: '7A6550', line: 'D9C8A6', head: '宋体', body: '微软雅黑', marker: 'square', card: 'paper',
+    headFill: DARK, headText: CREAM,
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, STAGE), ...grain(0, 0, SW, 6, '241B15', 160, 3), ...spot(SW / 2, 3.1, 5.4), ...stage(6.0), ...pool(SW / 2, 6.1, 5.6)];
+      E.push(...sideCurtain(true, 2.9, 4.3, STAGE), ...sideCurtain(false, 2.9, 4.3, STAGE), ...valance());
+      E.push(...orn(SW / 2, 1.38, 1.7), TX(SW / 2 - 1.5, 1.45, 3.0, 0.4, '今 晚 上 演', { size: 12, bold: true, color: GOLD, font: th.body, align: 'center', cs: 2 }));
+      E.push(...press(3.1, 1.95, SW - 6.2, 2.25, title, { size: fitPt(title, SW - 6.2, 2.25, 56, 24, 1.12), bold: true, color: GOLD, font: th.head, align: 'center', valign: 'middle', ls: 1.12 }, RED, 0.06, 0.06));
+      if (s.sub) E.push(TX(3.1, 4.2, SW - 6.2, 0.55, s.sub, { size: fitPt(s.sub, SW - 6.2, 0.55, 20, 12, 1.2), color: CREAM, font: th.body, align: 'center' }));
+      const ft = s.foot || '欢迎入场';
+      E.push(R(SW / 2 - 1.94, 5.01, 4.0, 0.62, RED), R(SW / 2 - 2.0, 4.95, 4.0, 0.62, STAGE, { line: GOLD, lw: 1 }), TX(SW / 2 - 1.8, 4.95, 3.6, 0.62, ft, { size: fitPt(ft, 3.6, 0.55, 15, 10, 1.2), color: CREAM, font: th.body, align: 'center', valign: 'middle' }));
+      E.push(...crops('8A6A3A'));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, STAGE), ...grain(0, 0, SW, 6.2, '241B15', 160, no + 5), ...spot(SW / 2, 3.2, 5.0), ...stage(6.2), ...pool(SW / 2, 6.3, 5.0)];
+      E.push(...sideCurtain(true, 3.3, 4.6, STAGE), ...sideCurtain(false, 3.3, 4.6, STAGE), ...valance());
+      E.push(...press(SW / 2 - 3, 1.15, 6, 1.1, `第${CN_NUM[(no - 1) % 10]}幕`, { size: 54, bold: true, color: VERM, font: th.head, align: 'center', valign: 'middle', ls: 1 }, '5A1A0C', 0.06, 0.06));
+      E.push(...orn(SW / 2, 2.38, 1.5), TX(SW / 2 - 1.2, 2.5, 2.4, 0.35, `ACT ${ROMAN[(no - 1) % 10]}`, { size: 12, bold: true, color: LGOLD, font: th.body, align: 'center', cs: 4 }));
+      E.push(...press(3.6, 3.0, SW - 7.2, 1.7, t, { size: fitPt(t, SW - 7.2, 1.7, 44, 20, 1.12), bold: true, color: GOLD, font: th.head, align: 'center', valign: 'middle', ls: 1.12 }, RED, 0.05, 0.05));
+      if (s.sub) E.push(TX(3.6, 4.75, SW - 7.2, 0.5, s.sub, { size: fitPt(s.sub, SW - 7.2, 0.5, 18, 11, 1.2), color: CREAM, font: th.body, align: 'center' }));
+      E.push(...crops('8A6A3A'));
+      return E;
+    },
+    end(th, s) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, STAGE), ...drape(0, SW / 2, 0, 6.3, 0.55), ...drape(SW / 2, SW / 2, 0, 6.3, 0.55), R(SW / 2 - 0.03, 0, 0.06, 6.3, SHADE), ...stage(6.3), ...valance(0.85)];
+      E.push(R(SW / 2 - 3.22, 1.83, 6.6, 3.5, '2A0508'), R(SW / 2 - 3.3, 1.75, 6.6, 3.5, STAGE), ...grain(SW / 2 - 3.3, 1.75, 6.6, 3.5, '2A2019', 60, 11), R(SW / 2 - 3.15, 1.9, 6.3, 3.2, null, { line: GOLD, lw: 1 }));
+      E.push(TX(SW / 2 - 3, 2.2, 6, 0.5, '剧 终', { size: 20, bold: true, color: GOLD, font: th.head, align: 'center', cs: 4 }), ...orn(SW / 2, 2.85, 1.6));
+      E.push(...press(SW / 2 - 2.9, 3.05, 5.8, 1.3, t, { size: fitPt(t, 5.8, 1.3, 60, 24, 1.08), bold: true, color: GOLD, font: th.head, align: 'center', valign: 'middle', ls: 1.08 }, RED, 0.06, 0.06));
+      E.push(TX(SW / 2 - 2.9, 4.4, 5.8, 0.5, s.sub || 'THE END', { size: s.sub ? fitPt(s.sub, 5.8, 0.5, 16, 11, 1.2) : 12, bold: !s.sub, color: CREAM, font: s.sub ? th.body : '黑体', align: 'center', cs: s.sub ? 0 : 4 }));
+      E.push(...crops('8A6A3A'));
+      return E;
+    },
+    frame(th, s, deck, page, contentNo) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, PAPER), ...grain(0, 1.3, SW, SH - 1.3, 'E2D5B8', 140, page), ...halftone(SW - 1.75, SH - 1.55, 8, 4, 0.16, 'E6D8BA'), ...drape(0, SW, 0, 1.15, 0.6)];
+      for (let x = -0.3; x < SW; x += 0.6) E.push(O(x, 0.92, 0.6, 0.4, DARK));
+      E.push(R(0, 1.12, SW, 0.05, GOLD));
+      for (let x = 0.05; x < SW; x += 0.12) E.push(R(x, 1.17, 0.025, 0.09, GOLD));
+      E.push(R(0.6, 0.18, SW - 1.2, 0.8, SHADE), R(0.68, 0.24, SW - 1.36, 0.68, null, { line: GOLD, lw: 0.75 }));
+      E.push(...press(0.95, 0.24, SW - 3.4, 0.68, t, { size: fitPt(t, SW - 3.4, 0.68, 26, 15, 1.1), bold: true, color: GOLD, font: th.head, valign: 'middle', ls: 1.1 }, RED, 0.035, 0.035));
+      E.push(TX(SW - 2.4, 0.24, 1.6, 0.68, `第${contentNo <= 10 ? CN_NUM[contentNo - 1] : contentNo}场`, { size: 13, bold: true, color: VERM, font: '黑体', align: 'right', valign: 'middle' }));
+      E.push(HL(0.8, SH - 0.62, SW - 1.6, GOLD, 1), HL(0.8, SH - 0.56, SW - 1.6, GOLD, 0.4), DIA(0.72, SH - 0.65, 0.12, 0.12, GOLD), DIA(SW - 0.84, SH - 0.65, 0.12, 0.12, GOLD));
+      E.push(TX(0.8, SH - 0.48, 8, 0.3, deck.title, { size: 10, color: th.muted, font: th.head }), TX(SW - 2.8, SH - 0.48, 2.0, 0.3, `— ${page} —`, { size: 10, bold: true, color: VERM, font: '黑体', align: 'right' }), ...crops('B9A47C', 0.2, 0.18));
+      return { E, body: { x: 0.8, y: 1.6, w: SW - 1.6, h: 5.0 } };
+    },
+    imageFrame: (th, ib) => { const b = 0.16; return [R(ib.x - b, ib.y - b, ib.w + 2 * b, b, GOLD), R(ib.x - b, ib.y + ib.h, ib.w + 2 * b, b, GOLD), R(ib.x - b, ib.y, b, ib.h, GOLD), R(ib.x + ib.w, ib.y, b, ib.h, GOLD), R(ib.x - b * 0.4, ib.y - b * 0.4, ib.w + b * 0.8, ib.h + b * 0.8, null, { line: '8A6A2A', lw: 0.75 })]; },
+    drawMarker: (th, x, y, size) => [DIA(x + size * 0.12, y + size * 0.22, size * 1.0, size * 1.0, RED), DIA(x, y + size * 0.1, size * 1.0, size * 1.0, GOLD)],
+    drawCard: (th, x, y, w, h, i) => [R(x + 0.08, y + 0.08, w, h, 'D8C6A0'), R(x, y, w, h, 'FBF4E4', { line: GOLD, lw: 1 }), R(x + 0.07, y + 0.07, w - 0.14, h - 0.14, null, { line: 'E5D3A8', lw: 0.5 }), R(x + w / 2 - 0.75, y - 0.17, 1.5, 0.34, DARK), TX(x + w / 2 - 0.75, y - 0.17, 1.5, 0.34, `第${CN_NUM[i] || i + 1}场`, { size: 11, bold: true, color: CREAM, font: '黑体', align: 'center', valign: 'middle', ls: 1 }), ...orn(x + w / 2, y + 0.45, Math.min(1.2, w * 0.3))],
+    cardAlign: 'center',
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
