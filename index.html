@@ -4071,6 +4071,156 @@ function composeSlide(s, deck) {
     cardAlign: 'center',
   };
 }
+// 2026-11-06：深海潜航——封面是海面和层层浪，章节在水下用舷窗装编号，内容页右边有水深尺，越往后潜得越深
+{
+  const DEEP = '0A2540'; const SEA = '135A8C'; const BLUE = '1F7FB8'; const TEAL = '2AB0BF'; const FOAM = 'EEF8FA'; const SAND = 'EAD3A2'; const CORAL = 'F06A4A'; const BRASS = 'C9A45C'; const SKY = 'D7EEF3';
+  // 浪：一条色带，顶上一排半圆鼓起来
+  const wave = (y, c, amp = 0.28, per = 1.1, off = 0) => { const E = [R(0, y, SW, SH - y, c)]; for (let x = -per + off; x < SW + per; x += per) E.push(O(x, y - amp, per, amp * 2, c)); return E; };
+  // 舷窗：黄铜圈 + 一圈螺丝 + 深色玻璃 + 一块反光
+  const porthole = (cx, cy, d, glass = DEEP) => {
+    const E = [O(cx - d / 2, cy - d / 2, d, d, BRASS), O(cx - d * 0.42, cy - d * 0.42, d * 0.84, d * 0.84, '8E6E2E'), O(cx - d * 0.38, cy - d * 0.38, d * 0.76, d * 0.76, glass)];
+    for (let i = 0; i < 8; i++) { const a = (i * Math.PI) / 4; E.push(O(cx + Math.cos(a) * d * 0.46 - d * 0.03, cy + Math.sin(a) * d * 0.46 - d * 0.03, d * 0.06, d * 0.06, '8E6E2E')); }
+    E.push(O(cx - d * 0.26, cy - d * 0.3, d * 0.16, d * 0.1, '3E7FA8'));
+    return E;
+  };
+  // 一串气泡：排成一列往上冒，越往上越小
+  const bubbles = (x, y, n, d, c) => Array.from({ length: n }, (_, i) => { const z = d * (1 - i * 0.14); return O(x + (i % 2 ? 0.08 : 0) - z / 2, y - i * d * 1.25, z, z, null, { line: c, lw: 1 }); });
+  const boat = (x, y) => [TRI(x + 0.35, y - 1.0, 0.55, 0.9, 'FFFFFF', { flipH: true }), TRI(x + 0.95, y - 0.75, 0.45, 0.65, 'FFFFFF'), R(x + 0.9, y - 1.05, 0.04, 1.0, DEEP), R(x, y - 0.12, 1.6, 0.18, CORAL), TRI(x - 0.18, y - 0.12, 0.18, 0.18, CORAL, { flipH: true }), TRI(x + 1.6, y - 0.12, 0.18, 0.18, CORAL, { flipV: true })];
+  const sand = (y) => [R(0, y, SW, SH - y, SAND), ...[0.08, 0.18].map((k, i) => HL(0, y + k, SW, i ? 'D9BE85' : 'F4E4C0', 1))];
+  const total = (deck) => deck.slides.length;
+  THEMES.d20261106 = {
+    name: '深海潜航', daily: '2026-11-06',
+    main: DEEP, soft: 'E3F3F5', accent: CORAL, bg: FOAM, text: '0E2236', muted: '4E6B80', line: 'BFDDE3', head: '黑体', body: '微软雅黑', marker: 'dot', card: 'paper',
+    headFill: DEEP, headText: FOAM,
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, SKY), O(10.6, 0.7, 1.5, 1.5, 'FFF2C6'), O(10.85, 0.95, 1.0, 1.0, 'FFE08A')];
+      E.push(...boat(9.6, 3.9), ...wave(3.9, TEAL, 0.22, 1.0), ...wave(4.45, BLUE, 0.26, 1.3, 0.4), ...wave(5.15, SEA, 0.3, 1.6, 0.9), ...wave(5.95, DEEP, 0.3, 2.0, 0.2));
+      E.push(...bubbles(9.2, 7.0, 5, 0.18, '7FC6D8'), ...bubbles(11.6, 6.9, 4, 0.14, '7FC6D8'));
+      E.push(TX(0.9, 0.7, 6, 0.4, '下潜之前', { size: 14, bold: true, color: SEA, font: th.body, cs: 2 }));
+      E.push(TX(0.9, 1.1, 8.2, 2.4, title, { size: fitPt(title, 8.2, 2.4, 52, 26, 1.12), bold: true, color: DEEP, font: th.head, valign: 'bottom', ls: 1.12 }));
+      E.push(R(0.9, 3.62, 1.2, 0.08, CORAL));
+      if (s.sub) E.push(TX(0.9, 4.75, 7.5, 0.6, s.sub, { size: fitPt(s.sub, 7.5, 0.6, 20, 12, 1.2), bold: true, color: 'FFFFFF', font: th.body }));
+      if (s.foot) E.push(TX(0.9, 6.35, 7.5, 0.5, s.foot, { size: fitPt(s.foot, 7.5, 0.5, 14, 10, 1.2), color: 'B9DCE8', font: th.body }));
+      E.push(TX(SW - 3.0, 6.5, 2.3, 0.4, '水深 0 米', { size: 12, bold: true, color: '9FD3E0', font: th.body, align: 'right' }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const depth = no * 100;
+      const E = [R(0, 0, SW, SH, SEA), R(0, 1.6, SW, SH, '0F4C78'), R(0, 3.4, SW, SH, '0C3A60'), R(0, 5.2, SW, SH, DEEP), ...sand(6.85)];
+      E.push(...porthole(3.0, 3.55, 4.0), TX(1.4, 1.95, 3.2, 3.2, pad2(no), { size: 96, bold: true, color: 'FFFFFF', font: th.head, align: 'center', valign: 'middle', ls: 1 }));
+      E.push(...bubbles(5.6, 6.3, 6, 0.2, '6FB9D0'));
+      E.push(TX(6.2, 1.85, 6, 0.4, `第${CN_NUM[(no - 1) % 10]}段下潜`, { size: 14, bold: true, color: '9FD3E0', font: th.body, cs: 2 }));
+      E.push(TX(6.2, 2.3, SW - 6.9, 1.9, t, { size: fitPt(t, SW - 6.9, 1.9, 46, 22, 1.12), bold: true, color: 'FFFFFF', font: th.head, valign: 'top', ls: 1.12 }));
+      E.push(R(6.2, 4.35, 1.2, 0.08, CORAL));
+      if (s.sub) E.push(TX(6.2, 4.6, SW - 6.9, 0.6, s.sub, { size: fitPt(s.sub, SW - 6.9, 0.6, 20, 12, 1.2), color: 'B9DCE8', font: th.body }));
+      E.push(TX(SW - 3.0, 6.25, 2.3, 0.4, `水深 ${depth} 米`, { size: 12, bold: true, color: '9FD3E0', font: th.body, align: 'right' }));
+      return E;
+    },
+    end(th, s) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, SKY), O(SW / 2 - 1.1, 0.5, 2.2, 2.2, 'FFF2C6'), O(SW / 2 - 0.75, 0.85, 1.5, 1.5, 'FFE08A')];
+      E.push(...wave(4.6, TEAL, 0.22, 1.0, 0.3), ...wave(5.15, BLUE, 0.26, 1.3), ...wave(5.8, SEA, 0.3, 1.6, 0.6), ...wave(6.5, DEEP, 0.3, 2.0));
+      E.push(TX(0.8, 2.2, SW - 1.6, 1.4, t, { size: fitPt(t, SW - 1.6, 1.4, 60, 28, 1.1), bold: true, color: DEEP, font: th.head, align: 'center', valign: 'middle', ls: 1.1 }));
+      E.push(TX(0.8, 3.6, SW - 1.6, 0.5, s.sub || '浮出水面，平安返航', { size: s.sub ? fitPt(s.sub, SW - 1.6, 0.5, 20, 12, 1.2) : 16, color: SEA, font: th.body, align: 'center' }));
+      E.push(...bubbles(3.2, 6.9, 5, 0.18, '7FC6D8'), ...bubbles(10.1, 6.9, 5, 0.18, '7FC6D8'));
+      return E;
+    },
+    frame(th, s, deck, page) {
+      const t = s.title || '';
+      const n = total(deck);
+      const depth = Math.round((page / n) * 300);
+      const E = [R(0, 0, SW, SH, FOAM), R(0, 0, SW, 0.95, SEA)];
+      for (let x = -0.5; x < SW + 0.5; x += 0.9) E.push(O(x, 0.75, 0.9, 0.4, SEA));
+      E.push(TX(0.8, 0.1, SW - 3.7, 0.8, t, { size: fitPt(t, SW - 3.7, 0.8, 28, 14, 1.1), bold: true, color: 'FFFFFF', font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(TX(SW - 2.8, 0.12, 2.1, 0.78, `水深 ${depth} 米`, { size: 13, bold: true, color: '9FD3E0', font: th.body, align: 'right', valign: 'middle' }));
+      // 右边的水深尺：刻度 + 现在的位置
+      const top = 1.45; const bot = SH - 0.55; const x = SW - 0.5;
+      E.push(VL(x, top, bot - top, '9CC7D2', 1.5));
+      for (let k = 0; k <= 6; k++) { const y = top + ((bot - top) * k) / 6; E.push(HL(x - (k % 2 ? 0.1 : 0.2), y, k % 2 ? 0.1 : 0.2, '9CC7D2', 1)); }
+      const my = top + (bot - top) * (page / n);
+      E.push(TRI(x + 0.06, my - 0.12, 0.22, 0.24, CORAL, { flipH: true }), R(x + 0.27, my - 0.12, 0.08, 0.24, CORAL));
+      E.push(...sand(SH - 0.28), TX(0.8, SH - 0.27, 8, 0.26, deck.title, { size: 9, color: '8A6A30', font: th.body, valign: 'middle' }), TX(SW - 2.6, SH - 0.27, 1.9, 0.26, `${page} / ${n}`, { size: 9, bold: true, color: '8A6A30', font: th.body, align: 'right', valign: 'middle' }));
+      return { E, body: { x: 0.8, y: 1.45, w: SW - 2.0, h: 5.2 } };
+    },
+    imageFrame: (th, ib) => { const b = 0.14; const E = [R(ib.x - b, ib.y - b, ib.w + 2 * b, b, BRASS), R(ib.x - b, ib.y + ib.h, ib.w + 2 * b, b, BRASS), R(ib.x - b, ib.y, b, ib.h, BRASS), R(ib.x + ib.w, ib.y, b, ib.h, BRASS)]; [[ib.x - b, ib.y - b], [ib.x + ib.w, ib.y - b], [ib.x - b, ib.y + ib.h], [ib.x + ib.w, ib.y + ib.h]].forEach(([px, py]) => E.push(O(px + b * 0.25, py + b * 0.25, b * 0.5, b * 0.5, '8E6E2E'))); return E; },
+    drawMarker: (th, x, y, size) => [O(x, y + size * 0.1, size * 1.05, size * 1.05, null, { line: TEAL, lw: 1.5 }), O(x + size * 0.25, y + size * 0.3, size * 0.25, size * 0.25, TEAL)],
+    drawCard: (th, x, y, w, h, i) => [R(x, y, w, h, 'FFFFFF', { line: th.line, lw: 0.75 }), R(x, y, 0.08, h, i % 2 ? TEAL : SEA), ...porthole(x + 0.62, y + 0.5, 0.55, i % 2 ? TEAL : SEA), TX(x + 0.345, y + 0.225, 0.55, 0.55, String(i + 1), { size: 13, bold: true, color: 'FFFFFF', font: th.body, align: 'center', valign: 'middle', ls: 1 })],
+  };
+}
+// 2026-11-07：森林露营——白天是山、松树、帐篷和篝火；章节是木头路牌「第一站」；内容页标题挂在木牌上，底下一条虚线小路，小圆点随页数走向帐篷；结尾是夜里的篝火
+{
+  const PINE = '1F4A33'; const GREEN = '2F6B45'; const LEAF = '5E9A5C'; const WOOD = '8A5A2E'; const WOOD2 = '6B4220'; const TENT = 'E07A3F'; const TENT2 = 'B85A26'; const CREAM = 'F6EEDB'; const KRAFT = 'F3EBD8'; const SKY = 'D6EBE3'; const NIGHT = '18233A'; const FIRE = 'F2A93B';
+  // 等腰三角：左右两块直角三角拼成
+  const iso = (x, base, w, h, c) => [TRI(x, base - h, w / 2 + 0.01, h, c, { flipH: true }), TRI(x + w / 2 - 0.01, base - h, w / 2 + 0.01, h, c)];
+  const pine = (x, base, w, h, c = PINE) => [R(x + w / 2 - w * 0.06, base - h * 0.18, w * 0.12, h * 0.18, WOOD2), ...iso(x, base - h * 0.15, w, h * 0.45, c), ...iso(x + w * 0.1, base - h * 0.38, w * 0.8, h * 0.4, c), ...iso(x + w * 0.22, base - h * 0.6, w * 0.56, h * 0.4, c)];
+  const tent = (x, base, w, h) => [...iso(x, base, w, h, TENT), ...iso(x + w * 0.32, base, w * 0.36, h * 0.55, TENT2), R(x + w / 2 - 0.01, base - h, 0.02, h * 0.45, TENT2)];
+  const fire = (x, base, d) => [LN(x, base, x + d, base - d * 0.25, WOOD2, 5), LN(x + d, base, x, base - d * 0.25, WOOD2, 5), ...iso(x + d * 0.1, base - d * 0.12, d * 0.8, d * 1.0, TENT), ...iso(x + d * 0.28, base - d * 0.12, d * 0.44, d * 0.62, FIRE)];
+  // 木牌：一块木板 + 下沿深色 + 四颗钉子
+  const sign = (x, y, w, h) => [R(x + 0.06, y + 0.08, w, h, '5A3A1A'), R(x, y, w, h, WOOD), R(x, y + h - 0.08, w, 0.08, WOOD2), HL(x + 0.15, y + h * 0.35, w - 0.3, '9C6A3A', 1), HL(x + 0.3, y + h * 0.68, w - 0.8, '9C6A3A', 1), ...[[0.12, 0.12], [w - 0.22, 0.12], [0.12, h - 0.24], [w - 0.22, h - 0.24]].map(([a, b]) => O(x + a, y + b, 0.1, 0.1, '3E2610'))];
+  // 虚线小路
+  const dashed = (pts, c, lw = 2.5) => { const E = []; for (let i = 0; i < pts.length - 1; i++) { const [x1, y1] = pts[i]; const [x2, y2] = pts[i + 1]; const L = Math.hypot(x2 - x1, y2 - y1); const n = Math.max(1, Math.floor(L / 0.24)); for (let k = 0; k < n; k += 1) { const a = k / n; const b = Math.min(1, a + 0.55 / n); E.push(LN(x1 + (x2 - x1) * a, y1 + (y2 - y1) * a, x1 + (x2 - x1) * b, y1 + (y2 - y1) * b, c, lw)); } } return E; };
+  THEMES.d20261107 = {
+    name: '森林露营', daily: '2026-11-07',
+    main: PINE, soft: 'E7EEDD', accent: TENT, bg: KRAFT, text: '263228', muted: '6A6A55', line: 'D6CBAE', head: '黑体', body: '微软雅黑', marker: 'square', card: 'paper',
+    headFill: PINE, headText: CREAM,
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, SKY), O(10.9, 0.55, 1.3, 1.3, 'FBE7A6')];
+      E.push(...iso(5.6, 5.6, 5.6, 2.8, 'B5CFC0'), ...iso(8.6, 5.6, 5.4, 3.4, 'A1BFAE'), ...iso(10.9, 5.6, 3.6, 2.2, '8DAE9C'));
+      E.push(R(0, 5.55, SW, SH - 5.55, LEAF), R(0, 6.2, SW, SH - 6.2, GREEN));
+      [[7.0, 1.0, 1.9], [7.8, 1.2, 2.5], [8.85, 0.9, 1.7], [12.1, 1.1, 2.3], [12.9, 0.9, 1.8]].forEach(([x, w, h]) => E.push(...pine(x, 5.75, w, h)));
+      E.push(...tent(9.7, 6.3, 1.9, 1.3), ...fire(11.75, 6.25, 0.55));
+      E.push(...dashed([[0.3, 7.3], [2.8, 6.75], [5.6, 6.95], [9.4, 6.35]], CREAM));
+      E.push(TX(0.9, 0.85, 6, 0.4, '出发去露营', { size: 14, bold: true, color: GREEN, font: th.body, cs: 2 }));
+      E.push(TX(0.9, 1.25, 6.4, 2.6, title, { size: fitPt(title, 6.4, 2.6, 46, 24, 1.12), bold: true, color: PINE, font: th.head, valign: 'bottom', ls: 1.12 }));
+      E.push(R(0.9, 4.0, 1.1, 0.08, TENT));
+      if (s.sub) E.push(TX(0.9, 4.25, 6.0, 0.6, s.sub, { size: fitPt(s.sub, 6.0, 0.6, 20, 12, 1.2), color: '3E5A48', font: th.body }));
+      if (s.foot) E.push(...sign(0.9, 5.75, 3.8, 0.62), TX(1.05, 5.75, 3.5, 0.55, s.foot, { size: fitPt(s.foot, 3.5, 0.5, 14, 10, 1.2), bold: true, color: CREAM, font: th.body, align: 'center', valign: 'middle' }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, 'E8F1E4'), ...iso(-0.5, 6.1, 6, 2.2, 'C8DCCB'), ...iso(8, 6.1, 6.5, 2.6, 'BCD3C0'), R(0, 6.0, SW, SH - 6.0, LEAF), R(0, 6.6, SW, SH - 6.6, GREEN)];
+      [[0.3, 0.9, 1.7], [10.6, 1.1, 2.2], [11.6, 0.9, 1.6], [12.4, 0.8, 1.4]].forEach(([x, w, h]) => E.push(...pine(x, 6.15, w, h)));
+      E.push(R(3.0, 3.4, 0.22, 3.0, WOOD2), ...sign(1.3, 1.6, 3.6, 2.0), TX(1.4, 1.65, 3.4, 1.8, `第${CN_NUM[(no - 1) % 10]}站`, { size: 54, bold: true, color: CREAM, font: th.head, align: 'center', valign: 'middle', ls: 1 }));
+      E.push(...dashed([[3.2, 7.4], [5.0, 6.75], [7.5, 6.95], [10.0, 6.5]], CREAM));
+      E.push(TX(5.9, 2.0, SW - 6.6, 2.2, t, { size: fitPt(t, SW - 6.6, 2.2, 46, 22, 1.12), bold: true, color: PINE, font: th.head, valign: 'middle', ls: 1.12 }));
+      E.push(R(5.9, 4.3, 1.1, 0.08, TENT));
+      if (s.sub) E.push(TX(5.9, 4.55, SW - 6.6, 0.6, s.sub, { size: fitPt(s.sub, SW - 6.6, 0.6, 20, 12, 1.2), color: '3E5A48', font: th.body }));
+      return E;
+    },
+    end(th, s) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, NIGHT), O(10.6, 0.7, 1.2, 1.2, 'F4E7C3'), O(10.95, 0.65, 1.1, 1.1, NIGHT)];
+      E.push(...iso(-0.5, 6.0, 6.5, 2.6, '22304A'), ...iso(7.5, 6.0, 7, 3.0, '1F2C44'), R(0, 5.9, SW, SH - 5.9, '142019'));
+      [[0.4, 1.0, 2.0], [1.3, 1.2, 2.6], [2.4, 0.9, 1.8], [10.9, 1.1, 2.4], [11.9, 1.0, 2.0], [12.6, 0.8, 1.5]].forEach(([x, w, h]) => E.push(...pine(x, 6.05, w, h, '0F1F17')));
+      E.push(O(SW / 2 - 1.6, 5.75, 3.2, 0.9, '3A2A16'), O(SW / 2 - 0.9, 5.9, 1.8, 0.55, '5A3A1A'), ...fire(SW / 2 - 0.45, 6.35, 0.9), ...tent(8.4, 6.4, 1.7, 1.15));
+      E.push(TX(0.8, 1.7, SW - 1.6, 1.5, t, { size: fitPt(t, SW - 1.6, 1.5, 60, 28, 1.1), bold: true, color: CREAM, font: th.head, align: 'center', valign: 'middle', ls: 1.1 }));
+      E.push(TX(0.8, 3.25, SW - 1.6, 0.5, s.sub || '围着篝火，下次再见', { size: s.sub ? fitPt(s.sub, SW - 1.6, 0.5, 20, 12, 1.2) : 16, color: 'C9CFB8', font: th.body, align: 'center' }));
+      return E;
+    },
+    frame(th, s, deck, page) {
+      const t = s.title || '';
+      const n = deck.slides.length;
+      const E = [R(0, 0, SW, SH, KRAFT)];
+      const pt = fitPt(t, SW - 4.0, 0.7, 28, 15, 1.1);
+      const tw = Math.min(SW - 2.6, Math.max(3.0, (emWidth(t) * pt) / 72 / 0.9 + 0.8));
+      E.push(...sign(0.6, 0.35, tw, 0.95), TX(0.9, 0.35, tw - 0.6, 0.87, t, { size: pt, bold: true, color: CREAM, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(...pine(SW - 1.55, 1.35, 0.6, 1.0), ...pine(SW - 1.0, 1.35, 0.5, 0.8, GREEN));
+      // 底部小路：小圆点按页数往帐篷走
+      const y0 = SH - 0.45; const x0 = 0.8; const x1 = SW - 1.6;
+      E.push(...dashed([[x0, y0], [x1, y0]], 'B8A77F', 2), ...tent(x1 + 0.1, y0 + 0.2, 0.6, 0.45));
+      const px = x0 + (x1 - x0) * (page / n);
+      E.push(O(px - 0.12, y0 - 0.12, 0.24, 0.24, TENT), TX(x0, y0 - 0.42, 8, 0.28, deck.title, { size: 9, color: th.muted, font: th.body }), TX(x1 - 2.2, y0 - 0.42, 2.0, 0.28, `${page} / ${n}`, { size: 9, bold: true, color: GREEN, font: th.body, align: 'right' }));
+      return { E, body: { x: 0.8, y: 1.6, w: SW - 1.6, h: 4.85 } };
+    },
+    imageFrame: (th, ib) => { const b = 0.15; return [R(ib.x - b + 0.06, ib.y - b + 0.08, ib.w + 2 * b, ib.h + 2 * b, '5A3A1A'), R(ib.x - b, ib.y - b, ib.w + 2 * b, b, WOOD), R(ib.x - b, ib.y + ib.h, ib.w + 2 * b, b, WOOD), R(ib.x - b, ib.y, b, ib.h, WOOD), R(ib.x + ib.w, ib.y, b, ib.h, WOOD), R(ib.x, ib.y, ib.w, ib.h, KRAFT)]; },
+    drawMarker: (th, x, y, size, n) => [...iso(x - size * 0.05, y + size * 1.15, size * 1.1, size * 1.1, n % 2 ? GREEN : TENT)],
+    drawCard: (th, x, y, w, h, i) => [R(x + 0.06, y + 0.08, w, h, 'DCCFAE'), R(x, y, w, h, 'FFFCF3'), R(x, y, w, 0.12, i % 2 ? TENT : GREEN), ...pine(x + 0.3, y + 0.85, 0.45, 0.6, i % 2 ? TENT2 : PINE), TX(x + 0.85, y + 0.3, 1.5, 0.45, `第${CN_NUM[i] || i + 1}项`, { size: 13, bold: true, color: i % 2 ? TENT2 : GREEN, font: th.head, valign: 'middle' })],
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
