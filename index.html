@@ -4297,6 +4297,83 @@ function composeSlide(s, deck) {
     drawCard: (th, x, y, w, h, i) => [...box(x, y, w, h, i % 2 ? BLUE : CHALK), O(x + w / 2 - 0.14, y - 0.14, 0.28, 0.28, [PINK, YEL, BLUE][i % 3]), ...ring(x + 0.3, y + 0.25, 0.55, YEL), TX(x + 0.3, y + 0.25, 0.55, 0.55, String(i + 1), { size: 16, bold: true, color: YEL, font: th.head, align: 'center', valign: 'middle', ls: 1 })],
   };
 }
+// 2026-11-09：蒸汽机械·线稿——深墨蓝底，只用细金线画齿轮、机械图纸的尺寸标注、刻度和中心线；东西少、留白多，像一张考究的机械设计图
+{
+  const INK = '0E1626'; const INK2 = '131D30'; const GOLD = 'C9A55C'; const GOLDL = 'E4CC94'; const FAINT = '2A3650'; const PAPER = 'F4EFE4'; const TXT = 'E9E2D0'; const MUTED = '8C93A6';
+  // 线稿齿轮：齿是一圈外接的小方框线，轮身、内圈、轴孔都是细线，加十字中心线
+  const gear = (cx, cy, r, n = 14, c = GOLD, lw = 0.75) => {
+    const E = []; const t = r * 0.16;
+    for (let i = 0; i < n; i++) {
+      const a = (i * 2 * Math.PI) / n; const a1 = a - Math.PI / n * 0.45; const a2 = a + Math.PI / n * 0.45;
+      const p = (ang, rr) => [cx + Math.cos(ang) * rr, cy + Math.sin(ang) * rr];
+      const [x1, y1] = p(a1, r); const [x2, y2] = p(a1, r + t); const [x3, y3] = p(a2, r + t); const [x4, y4] = p(a2, r);
+      E.push(LN(x1, y1, x2, y2, c, lw), LN(x2, y2, x3, y3, c, lw), LN(x3, y3, x4, y4, c, lw));
+    }
+    E.push(O(cx - r, cy - r, 2 * r, 2 * r, null, { line: c, lw }), O(cx - r * 0.72, cy - r * 0.72, r * 1.44, r * 1.44, null, { line: c, lw: lw * 0.6 }), O(cx - r * 0.2, cy - r * 0.2, r * 0.4, r * 0.4, null, { line: c, lw }));
+    for (let i = 0; i < 6; i++) { const a = (i * Math.PI) / 3; E.push(LN(cx + Math.cos(a) * r * 0.2, cy + Math.sin(a) * r * 0.2, cx + Math.cos(a) * r * 0.72, cy + Math.sin(a) * r * 0.72, c, lw * 0.6)); }
+    E.push(HL(cx - r * 1.35, cy, r * 2.7, FAINT, 0.5), VL(cx, cy - r * 1.35, r * 2.7, FAINT, 0.5));
+    return E;
+  };
+  // 尺寸标注：两头小竖线 + 中间横线 + 数字
+  const dim = (x, y, w, label, c = GOLD) => [HL(x, y, w, c, 0.5), VL(x, y - 0.08, 0.16, c, 0.5), VL(x + w, y - 0.08, 0.16, c, 0.5), DIA(x - 0.03, y - 0.03, 0.06, 0.06, c), DIA(x + w - 0.03, y - 0.03, 0.06, 0.06, c), TX(x, y - 0.32, w, 0.26, label, { size: 9, color: c, font: '微软雅黑', align: 'center', ls: 1 })];
+  // 刻度尺
+  const ticks = (x, y, w, n, c = FAINT) => [HL(x, y, w, c, 0.5), ...Array.from({ length: n + 1 }, (_, i) => VL(x + (w * i) / n, y - (i % 5 ? 0.06 : 0.14), i % 5 ? 0.06 : 0.14, c, 0.5))];
+  // 图框：外细线 + 内线
+  const border = (c = FAINT) => [R(0.3, 0.3, SW - 0.6, SH - 0.6, null, { line: c, lw: 0.5 }), R(0.4, 0.4, SW - 0.8, SH - 0.8, null, { line: c, lw: 0.5 })];
+  // 右下角的图纸标题栏
+  const titleBlock = (x, y, rows) => { const w = 3.4; const h = 0.32; const E = [R(x, y, w, h * rows.length, null, { line: GOLD, lw: 0.5 })]; rows.forEach(([k, v], i) => { if (i) E.push(HL(x, y + i * h, w, GOLD, 0.5)); E.push(VL(x + 0.9, y + i * h, h, GOLD, 0.5), TX(x + 0.08, y + i * h, 0.8, h, k, { size: 8, color: MUTED, font: '微软雅黑', valign: 'middle', ls: 1 }), TX(x + 0.98, y + i * h, w - 1.05, h, v, { size: fitPt(v, w - 1.05, h, 9, 6, 1), color: GOLDL, font: '微软雅黑', valign: 'middle', ls: 1 })); }); return E; };
+  THEMES.d20261109 = {
+    name: '蒸汽机械', daily: '2026-11-09',
+    main: GOLDL, soft: INK2, accent: GOLD, bg: INK, text: TXT, muted: MUTED, line: FAINT, head: '宋体', body: '微软雅黑', marker: 'dot', card: 'paper',
+    headFill: INK2, headText: GOLDL, rows: [INK, INK2], tableText: TXT,
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, INK), ...border()];
+      E.push(...gear(9.9, 3.5, 2.0, 18), ...gear(12.1, 1.55, 0.85, 10), ...gear(12.0, 5.85, 0.6, 9));
+      E.push(...dim(7.9, 6.2, 4.0, 'Ø 4.00'));
+      E.push(TX(1.1, 1.3, 5, 0.3, '图号 01', { size: 10, color: GOLD, font: th.body, cs: 2 }), HL(1.1, 1.7, 0.8, GOLD, 1));
+      E.push(TX(1.1, 1.95, 6.6, 2.3, title, { size: fitPt(title, 6.6, 2.3, 46, 22, 1.2), bold: true, color: TXT, font: th.head, valign: 'top', ls: 1.2 }));
+      if (s.sub) E.push(TX(1.1, 4.35, 6.4, 0.5, s.sub, { size: fitPt(s.sub, 6.4, 0.5, 18, 11, 1.2), color: MUTED, font: th.body }));
+      E.push(...ticks(1.1, 5.2, 4.0, 20));
+      if (s.foot) E.push(TX(1.1, 5.45, 6.4, 0.4, s.foot, { size: fitPt(s.foot, 6.4, 0.4, 13, 9, 1.2), color: GOLDL, font: th.body }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, INK), ...border()];
+      E.push(...gear(3.3, 3.75, 1.9, 16), O(3.3 - 0.9, 3.75 - 0.9, 1.8, 1.8, INK), O(3.3 - 0.9, 3.75 - 0.9, 1.8, 1.8, null, { line: GOLD, lw: 0.75 }), TX(3.3 - 1.0, 3.75 - 1.0, 2.0, 2.0, pad2(no), { size: 54, color: GOLDL, font: th.head, align: 'center', valign: 'middle', ls: 1 }));
+      E.push(VL(6.2, 1.6, 4.3, FAINT, 0.5));
+      E.push(TX(6.7, 2.2, 6, 0.3, `第${CN_NUM[(no - 1) % 10]}道工序`, { size: 11, color: GOLD, font: th.body, cs: 2 }), HL(6.7, 2.6, 0.8, GOLD, 1));
+      E.push(TX(6.7, 2.85, SW - 7.5, 1.8, t, { size: fitPt(t, SW - 7.5, 1.8, 40, 20, 1.2), bold: true, color: TXT, font: th.head, valign: 'top', ls: 1.2 }));
+      if (s.sub) E.push(TX(6.7, 4.75, SW - 7.5, 0.5, s.sub, { size: fitPt(s.sub, SW - 7.5, 0.5, 16, 11, 1.2), color: MUTED, font: th.body }));
+      E.push(...ticks(6.7, 5.7, 4.5, 30));
+      return E;
+    },
+    end(th, s, deck) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, INK), ...border()];
+      E.push(...gear(SW / 2, 3.2, 1.7, 16, FAINT, 0.5));
+      E.push(TX(0.8, 2.35, SW - 1.6, 1.4, t, { size: fitPt(t, SW - 1.6, 1.4, 56, 26, 1.1), bold: true, color: TXT, font: th.head, align: 'center', valign: 'middle', ls: 1.1 }));
+      E.push(HL(SW / 2 - 0.4, 3.95, 0.8, GOLD, 1), TX(0.8, 4.15, SW - 1.6, 0.45, s.sub || '图纸完', { size: s.sub ? fitPt(s.sub, SW - 1.6, 0.45, 16, 11, 1.2) : 12, color: MUTED, font: th.body, align: 'center', cs: s.sub ? 0 : 3 }));
+      E.push(...titleBlock(SW - 3.85, SH - 1.35, [['名称', deck.title || ''], ['页数', String(deck.slides.length)], ['状态', '完成']]));
+      return E;
+    },
+    frame(th, s, deck, page, contentNo) {
+      const t = s.title || '';
+      const n = deck.slides.length;
+      const E = [R(0, 0, SW, SH, INK), ...border()];
+      E.push(TX(0.8, 0.55, 3, 0.26, `图 ${pad2(contentNo)}`, { size: 9, color: GOLD, font: th.body, cs: 2 }));
+      E.push(TX(0.8, 0.8, SW - 3.4, 0.6, t, { size: fitPt(t, SW - 3.4, 0.6, 26, 14, 1.1), bold: true, color: TXT, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(HL(0.8, 1.5, 0.8, GOLD, 1), HL(1.7, 1.5, SW - 2.5, FAINT, 0.5));
+      E.push(...gear(SW - 1.25, 0.95, 0.38, 10));
+      E.push(...ticks(0.8, SH - 0.62, SW - 4.4, 60), DIA(0.8 + (SW - 4.4) * (page / n) - 0.06, SH - 0.82, 0.12, 0.12, GOLD), TX(SW - 3.4, SH - 0.78, 2.6, 0.28, `${pad2(page)} / ${pad2(n)}`, { size: 9, color: GOLD, font: th.body, align: 'right' }));
+      return { E, body: { x: 0.8, y: 1.75, w: SW - 1.6, h: 4.75 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.1, ib.y - 0.1, ib.w + 0.2, ib.h + 0.2, null, { line: GOLD, lw: 0.5 }), ...dim(ib.x, ib.y + ib.h + 0.35, ib.w, '')],
+    drawMarker: (th, x, y, size) => [O(x, y + size * 0.15, size * 0.85, size * 0.85, null, { line: GOLD, lw: 0.75 }), HL(x - size * 0.15, y + size * 0.575, size * 1.15, GOLD, 0.5)],
+    drawCard: (th, x, y, w, h, i) => [R(x, y, w, h, INK2), R(x, y, w, h, null, { line: FAINT, lw: 0.5 }), HL(x, y, 0.6, GOLD, 1.25), TX(x + 0.35, y + 0.25, 1.5, 0.5, pad2(i + 1), { size: 20, color: GOLD, font: '宋体', ls: 1 }), ...gear(x + w - 0.5, y + 0.5, 0.2, 8, FAINT, 0.5)],
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
