@@ -4374,6 +4374,110 @@ function composeSlide(s, deck) {
     drawCard: (th, x, y, w, h, i) => [R(x, y, w, h, INK2), R(x, y, w, h, null, { line: FAINT, lw: 0.5 }), HL(x, y, 0.6, GOLD, 1.25), TX(x + 0.35, y + 0.25, 1.5, 0.5, pad2(i + 1), { size: 20, color: GOLD, font: '宋体', ls: 1 }), ...gear(x + w - 0.5, y + 0.5, 0.2, 8, FAINT, 0.5)],
   };
 }
+// 2026-11-10：地铁线路图——白底，每一章是一条不同颜色的线（蓝、红、绿、黄、紫）；站点是白心圆，换乘站黑圈；封面是几条线交汇的线路图，章节像站台的站名牌（上一站、下一站），内容页底部线路随页数前进，结尾一路换乘到终点站
+{
+  const K = '1A1D21'; const GRY = 'C9CED4'; const PALE = 'F3F5F7'; const MUTED = '6C737C'; const W = 'FFFFFF';
+  const PAL = ['1F5AA6', 'D9382B', '2E8B3E', 'E9A21A', '7A3E9D'];
+  const col = (i) => PAL[((i % PAL.length) + PAL.length) % PAL.length];
+  // 站点：白心圆 + 彩色描边
+  const stop = (cx, cy, d, c, lw = 2.25) => O(cx - d / 2, cy - d / 2, d, d, W, { line: c, lw });
+  // 换乘站：大一圈，黑色描边
+  const inter = (cx, cy, d = 0.42) => O(cx - d / 2, cy - d / 2, d, d, W, { line: K, lw: 2.5 });
+  // 当前站：黑圈 + 线路色实心点
+  const here = (cx, cy, c, d = 0.54) => [O(cx - d / 2, cy - d / 2, d, d, W, { line: K, lw: 3 }), O(cx - d * 0.2, cy - d * 0.2, d * 0.4, d * 0.4, c)];
+  // 线路号圆牌
+  const badge = (x, y, d, t, c, pt = 16) => [O(x, y, d, d, c), TX(x, y, d, d, t, { size: pt, bold: true, color: W, font: '微软雅黑', align: 'center', valign: 'middle', ls: 1 })];
+  // 站名小字
+  const label = (cx, y, w, t, c = MUTED, max = 11) => { const s = String(t || '').slice(0, 8); return TX(cx - w / 2, y, w, 0.34, s, { size: fitPt(s, w, 0.34, max, 7, 1.1), color: c, font: '微软雅黑', align: 'center', valign: 'middle', ls: 1.1 }); };
+  const sections = (deck) => deck.slides.filter((x) => x.layout === 'section');
+  // 第 i 页属于第几章（从 0 开始，章节前的页算第 0 章）
+  const secOf = (deck, i) => Math.max(0, deck.slides.slice(0, i + 1).filter((x) => x.layout === 'section').length - 1);
+  THEMES.d20261110 = {
+    name: '地铁线路', daily: '2026-11-10',
+    main: PAL[0], soft: PALE, accent: PAL[1], bg: W, text: K, muted: MUTED, line: 'DDE1E5', head: '黑体', body: '微软雅黑', marker: 'dot', card: 'line',
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, W)];
+      // 红线竖穿，绿线从上面横出，蓝线从底部折上来，在两个换乘站相交
+      E.push(VL(9.4, -0.1, SH + 0.2, PAL[1], 9), HL(9.4, 1.9, SW - 9.3, PAL[2], 9));
+      E.push(HL(-0.2, 6.3, 7.6, PAL[0], 9), LN(7.4, 6.3, 9.4, 4.3, PAL[0], 9), HL(9.4, 4.3, SW - 9.2, PAL[0], 9));
+      const secs = sections(deck).map((x) => x.title);
+      [[1.6, 6.3], [4.5, 6.3], [7.4, 6.3]].forEach(([x, y], i) => { E.push(stop(x, y, 0.3, PAL[0])); if (secs[i]) E.push(label(x, y + 0.3, 1.7, secs[i])); });
+      E.push(stop(11.7, 4.3, 0.3, PAL[0]), stop(11.6, 1.9, 0.3, PAL[2]), stop(9.4, 0.7, 0.3, PAL[1]), stop(9.4, 6.4, 0.3, PAL[1]));
+      E.push(inter(9.4, 4.3), inter(9.4, 1.9));
+      [0, 1, 2].forEach((i) => E.push(...badge(0.9 + i * 0.62, 0.85, 0.5, String(i + 1), PAL[i], 14)));
+      E.push(TX(2.85, 0.85, 3, 0.5, '号线', { size: 16, bold: true, color: K, font: th.head, valign: 'middle', ls: 1 }));
+      E.push(TX(0.9, 1.75, 7.6, 2.5, title, { size: fitPt(title, 7.6, 2.5, 48, 24, 1.15), bold: true, color: K, font: th.head, valign: 'top', ls: 1.15 }));
+      if (s.sub) E.push(TX(0.9, 4.35, 6.2, 0.6, s.sub, { size: fitPt(s.sub, 6.2, 0.6, 20, 12, 1.2), color: MUTED, font: th.body }));
+      if (s.foot) E.push(TX(0.9, 5.05, 6.2, 0.4, s.foot, { size: fitPt(s.foot, 6.2, 0.4, 13, 9, 1.2), color: K, font: th.body }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const secs = sections(deck);
+      const k = Math.max(secs.length, 1); const cur = no - 1; const c = col(cur);
+      const E = [R(0, 0, SW, SH, W)];
+      E.push(...badge(0.9, 1.35, 1.3, pad2(no), c, 36));
+      E.push(TX(2.6, 1.3, 6, 0.3, `第${CN_NUM[(no - 1) % 10]}站`, { size: 12, color: MUTED, font: th.body, cs: 2 }));
+      E.push(TX(2.6, 1.65, SW - 3.4, 1.4, t, { size: fitPt(t, SW - 3.4, 1.4, 44, 22, 1.15), bold: true, color: K, font: th.head, valign: 'top', ls: 1.15 }));
+      if (s.sub) E.push(TX(2.6, 3.1, SW - 3.4, 0.5, s.sub, { size: fitPt(s.sub, SW - 3.4, 0.5, 16, 11, 1.2), color: MUTED, font: th.body }));
+      // 线路条：走过的灰色，前方每一段用那一章的颜色，换章处是换乘站
+      const y = 4.3; const x0 = 1.2; const x1 = SW - 1.2; const gap = k > 1 ? (x1 - x0) / (k - 1) : 0;
+      const px = (i) => (k > 1 ? x0 + gap * i : SW / 2);
+      E.push(HL(-0.1, y, px(0) + 0.1, cur > 0 ? GRY : c, 9));
+      for (let i = 0; i < k - 1; i++) E.push(HL(px(i), y, gap, i < cur ? GRY : col(i), 9));
+      E.push(HL(px(k - 1), y, SW + 0.1 - px(k - 1), col(k - 1), 9));
+      const lw = k > 1 ? Math.min(1.9, gap * 0.92) : 3;
+      secs.forEach((x, i) => {
+        if (i === cur) E.push(...here(px(i), y, c));
+        else E.push(i < cur ? stop(px(i), y, 0.3, GRY) : inter(px(i), y, 0.36));
+        E.push(label(px(i), y + 0.4, lw, x.title, i === cur ? K : MUTED, 13));
+      });
+      const prev = cur > 0 ? secs[cur - 1].title : '始发站'; const next = cur < secs.length - 1 ? secs[cur + 1].title : '终点站';
+      const nc = cur < secs.length - 1 ? col(cur + 1) : c;
+      E.push(TX(0.9, 5.6, 1.2, 0.3, '上一站', { size: 11, color: MUTED, font: th.body }), TX(0.9, 5.95, 5, 0.45, prev, { size: fitPt(prev, 5, 0.45, 18, 10, 1.2), color: MUTED, font: th.body }));
+      E.push(TX(SW - 5.9, 5.6, 5, 0.3, '下一站', { size: 11, color: nc, font: th.body, align: 'right' }), TX(SW - 5.9, 5.95, 5, 0.45, next, { size: fitPt(next, 5, 0.45, 18, 10, 1.2), bold: true, color: nc, font: th.body, align: 'right' }));
+      return E;
+    },
+    end(th, s, deck) {
+      const t = s.title || '谢谢！';
+      const k = Math.max(1, Math.min(5, sections(deck).length));
+      const E = [R(0, 0, SW, SH, W)];
+      E.push(TX(0.9, 1.5, 9.5, 1.8, t, { size: fitPt(t, 9.5, 1.8, 60, 28, 1.1), bold: true, color: K, font: th.head, valign: 'bottom', ls: 1.1 }));
+      E.push(TX(0.9, 3.5, 9.5, 0.5, s.sub || '本次列车终点站，感谢乘坐', { size: s.sub ? fitPt(s.sub, 9.5, 0.5, 18, 11, 1.2) : 16, color: MUTED, font: th.body }));
+      // 一路换乘：每一章一段颜色，交界处是换乘站
+      const y = 5.3; const tx = 10.6; const xs = [-0.2, ...Array.from({ length: k - 1 }, (_, i) => 1.4 + ((tx - 1.4) * (i + 1)) / k), tx];
+      for (let i = 0; i < k; i++) E.push(HL(xs[i], y, xs[i + 1] - xs[i], col(i), 9));
+      for (let i = 1; i < k; i++) E.push(inter(xs[i], y, 0.36));
+      E.push(O(tx - 0.36, y - 0.36, 0.72, 0.72, W, { line: K, lw: 4 }), O(tx - 0.15, y - 0.15, 0.3, 0.3, col(k - 1)));
+      E.push(TX(tx - 1, y + 0.5, 2, 0.35, '终点站', { size: 13, bold: true, color: K, font: th.body, align: 'center' }));
+      return E;
+    },
+    frame(th, s, deck, page, contentNo) {
+      const t = s.title || '';
+      const n = deck.slides.length;
+      const c = col(secOf(deck, page - 1));
+      const E = [R(0, 0, SW, SH, W)];
+      E.push(...badge(0.8, 0.55, 0.5, pad2(contentNo), c, 12));
+      E.push(TX(1.5, 0.45, SW - 2.3, 0.7, t, { size: fitPt(t, SW - 2.3, 0.7, 26, 14, 1.1), bold: true, color: K, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(HL(0.8, 1.35, SW - 1.6, th.line, 0.75));
+      // 底部线路：走过的路段用各章颜色，前方灰色，当前位置是黑圈
+      const y = SH - 0.45; const x0 = 0.8; const x1 = SW - 0.8; const pos = (i) => x0 + (x1 - x0) * (n > 1 ? i / (n - 1) : 0);
+      const cx = pos(page - 1);
+      E.push(HL(x0, y, x1 - x0, GRY, 4));
+      for (let i = 0; i < page - 1; i++) E.push(HL(pos(i), y, pos(i + 1) - pos(i), col(secOf(deck, i + 1)), 4));
+      deck.slides.forEach((x, i) => { if (x.layout === 'section' && i !== page - 1) E.push(stop(pos(i), y, 0.18, i < page - 1 ? K : GRY, 1.75)); });
+      E.push(O(cx - 0.13, y - 0.13, 0.26, 0.26, W, { line: K, lw: 2 }), O(cx - 0.06, y - 0.06, 0.12, 0.12, c));
+      const sec = deck.slides.slice(0, page).filter((x) => x.layout === 'section').pop();
+      if (sec) E.push(TX(x0, y - 0.45, 6, 0.28, `本站　${sec.title}`, { size: fitPt(`本站　${sec.title}`, 6, 0.28, 9, 7, 1), color: MUTED, font: th.body }));
+      E.push(TX(x1 - 2.5, y - 0.45, 2.5, 0.28, `${pad2(page)} / ${pad2(n)}`, { size: 9, color: MUTED, font: th.body, align: 'right' }));
+      return { E, body: { x: 0.8, y: 1.6, w: SW - 1.6, h: 4.75 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.08, ib.y - 0.08, ib.w + 0.16, ib.h + 0.16, null, { line: th.line, lw: 0.75 }), HL(ib.x - 0.08, ib.y - 0.08, ib.w + 0.16, PAL[0], 4)],
+    drawMarker: (th, x, y, size, n) => [O(x, y + size * 0.15, size * 0.72, size * 0.72, W, { line: PAL[0], lw: 2 })],
+    drawCard: (th, x, y, w, h, i) => [R(x, y, w, h, W, { line: th.line, lw: 0.75 }), HL(x + 0.85, y + 0.55, w - 1.2, col(i), 4), O(x + 0.3, y + 0.3, 0.5, 0.5, W, { line: col(i), lw: 2.5 }), TX(x + 0.3, y + 0.3, 0.5, 0.5, String(i + 1), { size: 14, bold: true, color: col(i), font: '微软雅黑', align: 'center', valign: 'middle', ls: 1 })],
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
