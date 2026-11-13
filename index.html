@@ -4478,6 +4478,80 @@ function composeSlide(s, deck) {
     drawCard: (th, x, y, w, h, i) => [R(x, y, w, h, W, { line: th.line, lw: 0.75 }), HL(x + 0.85, y + 0.55, w - 1.2, col(i), 4), O(x + 0.3, y + 0.3, 0.5, 0.5, W, { line: col(i), lw: 2.5 }), TX(x + 0.3, y + 0.3, 0.5, 0.5, String(i + 1), { size: 14, bold: true, color: col(i), font: '微软雅黑', align: 'center', valign: 'middle', ls: 1 })],
   };
 }
+// 2026-11-12：航空信——白纸，页面上下是红蓝相间的航空信封斜纹边；邮票带齿孔，邮戳是两圈细线加几道波纹；标题像写在信封上的收件地址，用楷体；章节是「第一封信」，结尾写「此致　敬礼」，盖上「已送达」邮戳
+{
+  const RED = 'C23B32'; const NAVY = '1E3A6E'; const INK = '22252B'; const MUTED = '737780'; const PALE = 'EAEFF6'; const W = 'FFFFFF'; const RULE = 'D6D9DE';
+  // 航空信封斜纹边：红、蓝斜条交替，只放在页面最上或最下，斜条伸出去的部分落在页面外
+  const band = (y, h) => { const E = []; for (let x = -h, i = 0; x < SW + h; x += 0.3, i++) E.push(LN(x, y + h, x + h, y, i % 2 ? NAVY : RED, 6)); return E; };
+  // 邮票：浅蓝底，四边咬出白色齿孔，里面一圈细框
+  const stamp = (x, y, w, h) => {
+    const E = [R(x, y, w, h, PALE)]; const d = 0.09; const step = 0.17;
+    for (let a = x + step / 2; a < x + w - d; a += step) E.push(O(a - d / 2, y - d / 2, d, d, W), O(a - d / 2, y + h - d / 2, d, d, W));
+    for (let b = y + step / 2; b < y + h - d; b += step) E.push(O(x - d / 2, b - d / 2, d, d, W), O(x + w - d / 2, b - d / 2, d, d, W));
+    E.push(R(x + 0.14, y + 0.14, w - 0.28, h - 0.28, null, { line: NAVY, lw: 0.75 }));
+    return E;
+  };
+  // 邮戳：两圈细线 + 中间文字 + 一侧几道注销线
+  const postmark = (cx, cy, r, t, side = -1, len = 1.1) => {
+    const E = [O(cx - r, cy - r, 2 * r, 2 * r, null, { line: NAVY, lw: 1 }), O(cx - r * 0.74, cy - r * 0.74, r * 1.48, r * 1.48, null, { line: NAVY, lw: 0.5 })];
+    E.push(TX(cx - r * 0.74, cy - r * 0.4, r * 1.48, r * 0.8, t, { size: Math.max(9, Math.round(r * 21)), bold: true, color: NAVY, font: '楷体', align: 'center', valign: 'middle', ls: 1 }));
+    [-0.16, -0.05, 0.06, 0.17].forEach((dy) => { const x = side < 0 ? cx - r - 0.12 - len : cx + r + 0.12; E.push(HL(x, cy + dy * r * 2.2, len, NAVY, 0.75)); });
+    return E;
+  };
+  const tag = (x, y) => [R(x, y + 0.06, 0.1, 0.24, RED), R(x + 0.14, y + 0.06, 0.1, 0.24, NAVY), TX(x + 0.36, y, 3, 0.36, '航空信件', { size: 12, bold: true, color: NAVY, font: '楷体', cs: 3, valign: 'middle', ls: 1 })];
+  THEMES.d20261112 = {
+    name: '航空信', daily: '2026-11-12',
+    main: NAVY, soft: PALE, accent: RED, bg: W, text: INK, muted: MUTED, line: RULE, head: '楷体', body: '微软雅黑', marker: 'diamond', card: 'line',
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, W), ...band(0, 0.24), ...band(SH - 0.24, 0.24)];
+      E.push(...tag(0.9, 0.75));
+      E.push(...stamp(SW - 2.5, 0.75, 1.55, 1.85), TX(SW - 2.5, 1.0, 1.55, 0.9, '80', { size: 40, bold: true, color: NAVY, font: '宋体', align: 'center', valign: 'middle', ls: 1 }), TX(SW - 2.5, 1.85, 1.55, 0.4, '航空 · 分', { size: 10, color: NAVY, font: th.body, align: 'center', ls: 1 }));
+      E.push(...postmark(SW - 2.55, 2.45, 0.6, '寄出', -1, 1.4));
+      E.push(TX(0.9, 2.9, 2, 0.4, '致：', { size: 16, color: MUTED, font: th.head }));
+      E.push(TX(0.9, 3.35, SW - 1.8, 1.9, title, { size: fitPt(title, SW - 1.8, 1.9, 44, 22, 1.2), bold: true, color: INK, font: th.head, valign: 'top', ls: 1.2 }));
+      E.push(HL(0.9, 5.35, SW - 1.8, RULE, 0.75));
+      if (s.sub) E.push(TX(0.9, 5.45, SW - 1.8, 0.5, s.sub, { size: fitPt(s.sub, SW - 1.8, 0.5, 18, 11, 1.2), color: MUTED, font: th.head }));
+      E.push(HL(0.9, 6.05, SW - 1.8, RULE, 0.75));
+      if (s.foot) E.push(TX(SW - 6.9, 6.3, 6, 0.4, `寄：${s.foot}`, { size: fitPt(`寄：${s.foot}`, 6, 0.4, 14, 9, 1.2), color: INK, font: th.head, align: 'right' }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, W), ...band(0, 0.24), ...band(SH - 0.24, 0.24)];
+      E.push(...stamp(0.9, 1.7, 2.5, 3.1), TX(0.9, 2.1, 2.5, 1.7, pad2(no), { size: 80, bold: true, color: NAVY, font: '宋体', align: 'center', valign: 'middle', ls: 1 }), TX(0.9, 3.95, 2.5, 0.4, `第${CN_NUM[(no - 1) % 10]}封`, { size: 13, color: NAVY, font: th.head, align: 'center', cs: 2 }));
+      E.push(...postmark(3.4, 1.85, 0.55, '寄出', 1, 0));
+      E.push(TX(4.4, 2.05, 6, 0.4, `第${CN_NUM[(no - 1) % 10]}封信`, { size: 15, color: RED, font: th.head, cs: 3 }));
+      E.push(TX(4.4, 2.5, SW - 5.3, 1.8, t, { size: fitPt(t, SW - 5.3, 1.8, 42, 22, 1.2), bold: true, color: INK, font: th.head, valign: 'top', ls: 1.2 }));
+      E.push(HL(4.4, 4.4, SW - 5.3, RULE, 0.75));
+      if (s.sub) E.push(TX(4.4, 4.5, SW - 5.3, 0.5, s.sub, { size: fitPt(s.sub, SW - 5.3, 0.5, 16, 11, 1.2), color: MUTED, font: th.head }));
+      E.push(HL(4.4, 5.1, SW - 5.3, RULE, 0.75));
+      return E;
+    },
+    end(th, s, deck) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, W), ...band(0, 0.24), ...band(SH - 0.24, 0.24)];
+      E.push(TX(0.9, 1.7, 7.6, 1.8, t, { size: fitPt(t, 7.6, 1.8, 60, 28, 1.1), bold: true, color: INK, font: th.head, valign: 'bottom', ls: 1.1 }));
+      E.push(TX(0.9, 3.75, 7.6, 0.6, s.sub || '此致　敬礼', { size: s.sub ? fitPt(s.sub, 7.6, 0.6, 20, 11, 1.2) : 22, color: MUTED, font: th.head }));
+      E.push(...stamp(SW - 3.5, 1.4, 1.6, 1.9), TX(SW - 3.5, 1.65, 1.6, 0.9, '80', { size: 40, bold: true, color: NAVY, font: '宋体', align: 'center', valign: 'middle', ls: 1 }));
+      E.push(...postmark(SW - 3.55, 3.35, 0.85, '已送达', 1, 1.6));
+      return E;
+    },
+    frame(th, s, deck, page, contentNo) {
+      const t = s.title || '';
+      const n = deck.slides.length;
+      const E = [R(0, 0, SW, SH, W), ...band(0, 0.14)];
+      E.push(TX(0.8, 0.45, SW - 3.9, 0.75, t, { size: fitPt(t, SW - 3.9, 0.75, 28, 14, 1.1), bold: true, color: INK, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(...postmark(SW - 1.25, 0.82, 0.4, pad2(page), -1, 0.9));
+      E.push(HL(0.8, 1.38, SW - 1.6, RULE, 0.75));
+      E.push(TX(SW - 3.8, SH - 0.5, 3, 0.28, `${pad2(page)} / ${pad2(n)}`, { size: 9, color: MUTED, font: th.body, align: 'right' }));
+      return { E, body: { x: 0.8, y: 1.6, w: SW - 1.6, h: 4.95 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.12, ib.y - 0.12, ib.w + 0.24, ib.h + 0.24, W, { line: RULE, lw: 0.75 })],
+    drawMarker: (th, x, y, size) => [LN(x, y + size * 0.85, x + size * 0.3, y + size * 0.25, RED, 3), LN(x + size * 0.35, y + size * 0.85, x + size * 0.65, y + size * 0.25, NAVY, 3)],
+    drawCard: (th, x, y, w, h, i) => [R(x, y, w, h, W, { line: RULE, lw: 0.75 }), LN(x + w - 0.75, y + 0.55, x + w - 0.55, y + 0.25, RED, 4), LN(x + w - 0.55, y + 0.55, x + w - 0.35, y + 0.25, NAVY, 4), TX(x + 0.35, y + 0.28, 1.5, 0.55, pad2(i + 1), { size: 22, bold: true, color: RED, font: '宋体', ls: 1 })],
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
