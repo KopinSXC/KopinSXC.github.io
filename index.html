@@ -4478,6 +4478,100 @@ function composeSlide(s, deck) {
     drawCard: (th, x, y, w, h, i) => [R(x, y, w, h, W, { line: th.line, lw: 0.75 }), HL(x + 0.85, y + 0.55, w - 1.2, col(i), 4), O(x + 0.3, y + 0.3, 0.5, 0.5, W, { line: col(i), lw: 2.5 }), TX(x + 0.3, y + 0.3, 0.5, 0.5, String(i + 1), { size: 14, bold: true, color: col(i), font: '微软雅黑', align: 'center', valign: 'middle', ls: 1 })],
   };
 }
+// 2026-11-11：乐谱——标题就是歌词：每个字上面配一个音符，写在五线谱下面；白纸黑字、细灰谱线，只用一种暗红。章节叫「第一乐章」并标速度，内容页标题下的细谱表上，红色音符随页数往前走、越走越高，结尾停在终止线上
+{
+  const INK = '1C1C1C'; const RED = 'A3242A'; const STAFF = 'A9A49B'; const MUTED = '77736B'; const PAPER = 'FFFFFF'; const SOFT = 'F5F3EF';
+  const TEMPO = ['行板', '快板', '慢板', '小快板', '柔板', '急板'];
+  const MELODY = [2, 4, 5, 4, 6, 5, 3, 4, 7, 6, 5, 3, 2, 4, 3, 1, 3, 5, 6, 4];
+  const staff = (x, top, w, gap, c = STAFF, lw = 0.75) => Array.from({ length: 5 }, (_, i) => HL(x, top + i * gap, w, c, lw));
+  // 一个音符：音高 0 是最下面那条线，8 是最上面那条线
+  const note = (cx, top, gap, step, c = INK, open = false) => {
+    const hw = gap * 1.3; const hh = gap * 0.92; const y = top + 4 * gap - (step * gap) / 2;
+    const E = [O(cx - hw / 2, y - hh / 2, hw, hh, open ? PAPER : c, { line: c, lw: open ? 1.25 : 0.5 })];
+    E.push(step < 4 ? VL(cx + hw / 2 - 0.01, y - gap * 3.3, gap * 3.3, c, 1) : VL(cx - hw / 2 + 0.01, y, gap * 3.3, c, 1));
+    return E;
+  };
+  const meter = (x, top, gap) => ['4', '4'].map((t, i) => TX(x, top + i * 2 * gap, gap * 1.6, gap * 2, t, { size: Math.round(gap * 2 * 72 * 0.82), bold: true, color: INK, font: '宋体', align: 'center', valign: 'middle', ls: 1 }));
+  // 一行谱 + 歌词：text 的每个字对一个音符，每四个字一条小节线
+  const sung = (x0, maxX1, top, gap, text, { maxPt = 40, maxCw = 1.25, end = false, start = 0, fill = true } = {}) => {
+    const chars = [...text]; const n = Math.max(1, chars.length);
+    const xs = x0 + gap * 2.4; const cw = Math.min(maxCw, (maxX1 - xs) / n);
+    const pt = Math.max(10, Math.min(maxPt, Math.floor(cw * 72 * 0.8)));
+    // 歌词之后，旋律不配字继续走到右边（每个音间距不超过 0.75 英寸）
+    const xsArr = chars.map((_, i) => xs + cw * (i + 0.5));
+    const ew = Math.min(cw, 0.75); let ex = xs + cw * n;
+    if (fill) while (ex + ew <= maxX1 + 0.001) { xsArr.push(ex + ew / 2); ex += ew; }
+    const x1 = fill ? maxX1 : xs + cw * n;
+    const E = [...staff(x0, top, x1 - x0, gap), VL(x0, top, gap * 4, INK, 0.75), ...meter(x0 + gap * 0.3, top, gap)];
+    xsArr.forEach((cx, i) => {
+      const ch = chars[i] ?? '';
+      const last = i === xsArr.length - 1;
+      if (i >= n || ch.trim()) E.push(...note(cx, top, gap, MELODY[(start + i) % MELODY.length], INK, end && last));
+      if (i < n) E.push(TX(cx - cw / 2, top + gap * 4 + gap * 1.6, cw, (pt * 1.3) / 72, ch, { size: pt, bold: true, color: INK, font: '宋体', align: 'center', valign: 'top', ls: 1.1 }));
+      if ((i + 1) % 4 === 0 && !last) { const nx = xsArr[i + 1]; const w0 = i < n ? cw : ew; E.push(VL(Math.min(cx + w0 / 2, nx - 0.05), top, gap * 4, INK, 0.75)); }
+    });
+    if (end) E.push(VL(x1 - gap * 0.5, top, gap * 4, INK, 0.75), R(x1 - gap * 0.3, top, gap * 0.3, gap * 4, INK));
+    else E.push(VL(x1, top, gap * 4, INK, 0.75));
+    return { E, bottom: top + gap * 5.6 + (pt * 1.3) / 72, x1 };
+  };
+  // 长标题拆成几行谱
+  const split = (t, per) => { const c = [...t]; const k = Math.ceil(c.length / per); const m = Math.ceil(c.length / k); return Array.from({ length: k }, (_, i) => c.slice(i * m, i * m + m).join('')); };
+  THEMES.d20261111 = {
+    name: '乐谱', daily: '2026-11-11',
+    main: '4A4640', soft: SOFT, accent: RED, bg: PAPER, text: INK, muted: MUTED, line: 'DEDAD3', head: '宋体', body: '微软雅黑', marker: 'dot', card: 'line',
+    headFill: '3A3733', headText: PAPER, rows: [PAPER, SOFT], tableText: INK,
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, PAPER)];
+      const lines = split(title, Math.max(18, Math.ceil([...title].length / 2))); const g = lines.length > 1 ? 0.17 : 0.2;
+      let y = lines.length > 1 ? 1.35 : 2.0;
+      E.push(TX(0.9, y - 0.65, 3, 0.36, '行板', { size: 13, bold: true, color: RED, font: th.head }));
+      let pos = 0;
+      lines.forEach((ln, i) => { const r = sung(0.9, SW - 0.9, y, g, ln, { maxPt: 40, end: i === lines.length - 1, start: pos }); pos += [...ln].length; E.push(...r.E); y = r.bottom + 0.35; });
+      if (s.sub) E.push(TX(0.9, y + 0.1, SW - 1.8, 0.5, s.sub, { size: fitPt(s.sub, SW - 1.8, 0.5, 18, 11, 1.2), color: MUTED, font: th.body }));
+      if (s.foot) E.push(TX(SW - 6.9, SH - 1.0, 6, 0.4, s.foot, { size: fitPt(s.foot, 6, 0.4, 13, 9, 1.2), color: INK, font: th.body, align: 'right' }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, PAPER)];
+      E.push(TX(0.9, 1.2, 6, 0.4, `第${CN_NUM[(no - 1) % 10]}乐章　${TEMPO[(no - 1) % TEMPO.length]}`, { size: 16, color: RED, font: th.head, cs: 2 }));
+      E.push(HL(0.9, 1.75, 0.6, RED, 1.25));
+      const lines = split(t, 20); const g = 0.17;
+      let y = lines.length > 1 ? 2.25 : 2.7; let pos = (no - 1) * 3;
+      lines.forEach((ln) => { const r = sung(0.9, SW - 0.9, y, g, ln, { maxPt: 36, maxCw: 1.0, start: pos }); pos += [...ln].length; E.push(...r.E); y = r.bottom + 0.3; });
+      if (s.sub) E.push(TX(0.9, y + 0.1, SW - 1.8, 0.5, s.sub, { size: fitPt(s.sub, SW - 1.8, 0.5, 16, 11, 1.2), color: MUTED, font: th.body }));
+      return E;
+    },
+    end(th, s, deck) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, PAPER)];
+      const lines = split(t, 16); let y = lines.length > 1 ? 1.5 : 2.2;
+      lines.forEach((ln, i) => { const r = sung(0.9, SW - 0.9, y, 0.22, ln, { maxPt: 54, maxCw: 1.5, end: i === lines.length - 1, start: 8 }); E.push(...r.E); y = r.bottom + 0.35; });
+      E.push(TX(0.9, y + 0.1, SW - 1.8, 0.5, s.sub || '全曲终', { size: s.sub ? fitPt(s.sub, SW - 1.8, 0.5, 18, 11, 1.2) : 16, color: MUTED, font: th.body, cs: s.sub ? 0 : 3 }));
+      return E;
+    },
+    frame(th, s, deck, page, contentNo) {
+      const t = s.title || '';
+      const n = deck.slides.length;
+      const E = [R(0, 0, SW, SH, PAPER)];
+      E.push(TX(0.8, 0.42, SW - 3.4, 0.62, t, { size: fitPt(t, SW - 3.4, 0.62, 26, 14, 1.1), bold: true, color: INK, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(TX(SW - 2.6, 0.62, 1.8, 0.3, `第 ${contentNo} 小节`, { size: 10, color: RED, font: th.body, align: 'right' }));
+      // 标题下的谱表：小节线是章节，红色音符是当前页，越往后音越高
+      const g = 0.075; const top = 1.18; const x0 = 0.8; const x1 = SW - 0.8;
+      const pos = (i) => x0 + 0.5 + (x1 - x0 - 0.8) * (n > 1 ? i / (n - 1) : 0);
+      E.push(...staff(x0, top, x1 - x0, g, STAFF, 0.5), VL(x0, top, g * 4, STAFF, 0.75), VL(x1 - 0.07, top, g * 4, STAFF, 0.75), R(x1 - 0.04, top, 0.04, g * 4, STAFF));
+      deck.slides.forEach((x, i) => { if (x.layout === 'section') E.push(VL(pos(i), top, g * 4, STAFF, 0.75)); });
+      E.push(...note(pos(page - 1), top, g, Math.round(1 + (6 * (page - 1)) / Math.max(1, n - 1)), RED));
+      E.push(TX(x1 - 2, SH - 0.55, 2, 0.26, `${pad2(page)} / ${pad2(n)}`, { size: 9, color: MUTED, font: th.body, align: 'right' }));
+      return { E, body: { x: 0.8, y: 1.85, w: SW - 1.6, h: 4.85 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.08, ib.y - 0.08, ib.w + 0.16, ib.h + 0.16, null, { line: STAFF, lw: 0.5 })],
+    drawMarker: (th, x, y, size) => [O(x, y + size * 0.42, size * 0.62, size * 0.44, INK), VL(x + size * 0.6, y - size * 0.05, size * 0.68, INK, 1)],
+    // 卡片是一个小节：顶上一段谱，右边一条小节线
+    drawCard: (th, x, y, w, h, i) => [...staff(x, y + 0.2, w, 0.05, STAFF, 0.5), VL(x, y + 0.2, 0.2, STAFF, 0.75), VL(x + w, y + 0.2, h - 0.2, STAFF, 0.75), ...note(x + w - 0.45, y + 0.2, 0.05, 2 + (i * 3) % 6, RED), TX(x, y + 0.42, 1.5, 0.45, pad2(i + 1), { size: 18, bold: true, color: RED, font: '宋体', ls: 1 })],
+  };
+}
 // 2026-11-12：航空信——白纸，页面上下是红蓝相间的航空信封斜纹边；邮票带齿孔，邮戳是两圈细线加几道波纹；标题像写在信封上的收件地址，用楷体；章节是「第一封信」，结尾写「此致　敬礼」，盖上「已送达」邮戳
 {
   const RED = 'C23B32'; const NAVY = '1E3A6E'; const INK = '22252B'; const MUTED = '737780'; const PALE = 'EAEFF6'; const W = 'FFFFFF'; const RULE = 'D6D9DE';
@@ -4550,6 +4644,151 @@ function composeSlide(s, deck) {
     imageFrame: (th, ib) => [R(ib.x - 0.12, ib.y - 0.12, ib.w + 0.24, ib.h + 0.24, W, { line: RULE, lw: 0.75 })],
     drawMarker: (th, x, y, size) => [LN(x, y + size * 0.85, x + size * 0.3, y + size * 0.25, RED, 3), LN(x + size * 0.35, y + size * 0.85, x + size * 0.65, y + size * 0.25, NAVY, 3)],
     drawCard: (th, x, y, w, h, i) => [R(x, y, w, h, W, { line: RULE, lw: 0.75 }), LN(x + w - 0.75, y + 0.55, x + w - 0.55, y + 0.25, RED, 4), LN(x + w - 0.55, y + 0.55, x + w - 0.35, y + 0.25, NAVY, 4), TX(x + 0.35, y + 0.28, 1.5, 0.55, pad2(i + 1), { size: 22, bold: true, color: RED, font: '宋体', ls: 1 })],
+  };
+}
+// 2026-11-13：围棋棋谱——像棋书里印的棋谱：白纸、细灰棋盘线、粗边线、星位小黑点，黑白棋子上印着手数，最新一手用暗红圈标出；章节叫「第一局」，内容页底部一排棋子随页数落下，结尾写「终局　承让」
+{
+  const INK = '1A1A1A'; const GRID = '9C9C9C'; const RED = 'B0282E'; const MUTED = '74767A'; const W = 'FFFFFF'; const SOFT = 'F3F3F1';
+  // 棋子：黑子白字、白子黑字
+  const stone = (cx, cy, d, black, num = '', pt) => {
+    const E = [O(cx - d / 2, cy - d / 2, d, d, black ? INK : W, { line: INK, lw: black ? 0.5 : 1 })];
+    if (num !== '') E.push(TX(cx - d / 2, cy - d / 2, d, d, String(num), { size: pt || Math.max(7, Math.round(d * 72 * 0.42)), bold: true, color: black ? W : INK, font: '微软雅黑', align: 'center', valign: 'middle', ls: 1 }));
+    return E;
+  };
+  const ring = (cx, cy, d) => O(cx - d / 2 - 0.05, cy - d / 2 - 0.05, d + 0.1, d + 0.1, null, { line: RED, lw: 1.75 });
+  // 棋盘一角：(ox, oy) 是角上那个点，dx、dy 是朝棋盘里面的方向（+1 或 -1），cols、rows 是画几路
+  const corner = (ox, oy, dx, dy, cols, rows, cell) => {
+    const E = []; const xs = (c) => ox + dx * c * cell; const ys = (r) => oy + dy * r * cell;
+    for (let c = 0; c < cols; c++) { const y0 = Math.min(ys(0), ys(rows - 1)); E.push(VL(xs(c), y0, (rows - 1) * cell, c ? GRID : INK, c ? 0.5 : 1.5)); }
+    for (let r = 0; r < rows; r++) { const x0 = Math.min(xs(0), xs(cols - 1)); E.push(HL(x0, ys(r), (cols - 1) * cell, r ? GRID : INK, r ? 0.5 : 1.5)); }
+    [[3, 3], [3, 9], [9, 3], [9, 9]].forEach(([c, r]) => { if (c < cols && r < rows) E.push(O(xs(c) - 0.045, ys(r) - 0.045, 0.09, 0.09, INK)); });
+    return { E, at: (c, r) => [xs(c), ys(r)] };
+  };
+  const MOVES = [[3, 2, 1], [2, 4, 0], [4, 4, 1], [2, 6, 0], [5, 2, 1], [6, 3, 0], [3, 9, 1]];
+  THEMES.d20261113 = {
+    name: '围棋棋谱', daily: '2026-11-13',
+    main: '3A3A3A', soft: SOFT, accent: RED, bg: W, text: INK, muted: MUTED, line: 'DADADA', head: '宋体', body: '微软雅黑', marker: 'dot', card: 'line',
+    headFill: '3A3A3A', headText: W, rows: [W, SOFT], tableText: INK,
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, W)];
+      const cell = 0.5; const b = corner(SW - 0.7, 0.7, -1, 1, 12, 13, cell); E.push(...b.E);
+      MOVES.forEach(([c, r, bl], i) => { const [x, y] = b.at(c, r); E.push(...stone(x, y, cell * 0.94, bl, i + 1)); if (i === MOVES.length - 1) E.push(ring(x, y, cell * 0.94)); });
+      E.push(TX(0.9, 1.3, 4, 0.36, '第一局', { size: 13, bold: true, color: RED, font: th.head, cs: 3 }), HL(0.9, 1.78, 0.6, INK, 1.25));
+      E.push(TX(0.9, 2.0, 5.3, 2.6, title, { size: fitPt(title, 5.3, 2.6, 42, 20, 1.2), bold: true, color: INK, font: th.head, valign: 'top', ls: 1.2 }));
+      if (s.sub) E.push(TX(0.9, 4.75, 5.3, 0.6, s.sub, { size: fitPt(s.sub, 5.3, 0.6, 16, 10, 1.2), color: MUTED, font: th.body }));
+      if (s.foot) { E.push(...stone(1.05, 6.2, 0.26, true)); E.push(TX(1.35, 6.02, 4.8, 0.36, s.foot, { size: fitPt(s.foot, 4.8, 0.36, 13, 9, 1.2), color: INK, font: th.body, valign: 'middle' })); }
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, W)];
+      const cx = 2.6; const cy = 3.75; const cell = 0.85;
+      for (let k = -2; k <= 2; k++) E.push(HL(cx - 2.3 * cell, cy + k * cell, 4.6 * cell, GRID, 0.5), VL(cx + k * cell, cy - 2.3 * cell, 4.6 * cell, GRID, 0.5));
+      E.push(...stone(cx, cy, cell * 1.8, true, pad2(no), 48));
+      E.push(...stone(cx + cell, cy - cell, cell * 0.9, false), ...stone(cx - cell, cy + cell, cell * 0.9, false));
+      E.push(TX(5.2, 2.2, 6, 0.4, `第${CN_NUM[(no - 1) % 10]}局`, { size: 16, bold: true, color: RED, font: th.head, cs: 3 }), HL(5.2, 2.75, 0.6, INK, 1.25));
+      E.push(TX(5.2, 3.0, SW - 6.0, 1.8, t, { size: fitPt(t, SW - 6.0, 1.8, 42, 22, 1.2), bold: true, color: INK, font: th.head, valign: 'top', ls: 1.2 }));
+      if (s.sub) E.push(TX(5.2, 4.9, SW - 6.0, 0.5, s.sub, { size: fitPt(s.sub, SW - 6.0, 0.5, 16, 11, 1.2), color: MUTED, font: th.body }));
+      return E;
+    },
+    end(th, s, deck) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, W)];
+      const cell = 0.48; const b = corner(0.7, SH - 0.7, 1, -1, 13, 13, cell); E.push(...b.E);
+      const mv = [[3, 3, 1], [2, 5, 0], [5, 2, 1], [4, 4, 0], [3, 9, 1], [6, 6, 0], [9, 3, 1]];
+      mv.forEach(([c, r, bl], i) => { const [x, y] = b.at(c, r); E.push(...stone(x, y, cell * 0.94, bl, i + 1)); if (i === mv.length - 1) E.push(ring(x, y, cell * 0.94)); });
+      E.push(TX(7.3, 2.0, SW - 8.1, 1.8, t, { size: fitPt(t, SW - 8.1, 1.8, 60, 28, 1.1), bold: true, color: INK, font: th.head, valign: 'bottom', ls: 1.1 }));
+      E.push(HL(7.3, 4.0, 0.6, RED, 1.25));
+      E.push(TX(7.3, 4.2, SW - 8.1, 0.6, s.sub || '终局　承让', { size: s.sub ? fitPt(s.sub, SW - 8.1, 0.6, 18, 11, 1.2) : 18, color: MUTED, font: th.head, cs: s.sub ? 0 : 2 }));
+      return E;
+    },
+    frame(th, s, deck, page, contentNo) {
+      const t = s.title || '';
+      const n = deck.slides.length;
+      const E = [R(0, 0, SW, SH, W)];
+      E.push(TX(0.8, 0.45, SW - 2.6, 0.7, t, { size: fitPt(t, SW - 2.6, 0.7, 26, 14, 1.1), bold: true, color: INK, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(TX(SW - 2.6, 0.6, 1.8, 0.4, `第 ${contentNo} 手`, { size: 11, color: RED, font: th.body, align: 'right', valign: 'middle' }));
+      // 标题下是棋盘的上边：一条粗边线，下面露出一小截格线
+      E.push(HL(0.8, 1.35, SW - 1.6, INK, 1.5));
+      for (let x = 0.8; x <= SW - 0.8 + 0.001; x += (SW - 1.6) / 28) E.push(VL(x, 1.35, 0.12, GRID, 0.5));
+      // 底部一排落子：走过的页黑白交替，当前页加红圈
+      const y = SH - 0.5; const x0 = 1.0; const x1 = SW - 1.0; const gap = n > 1 ? (x1 - x0) / (n - 1) : 0; const d = Math.min(0.22, gap * 0.85 || 0.22);
+      E.push(HL(0.8, y, SW - 1.6, GRID, 0.5));
+      for (let i = 0; i < n; i++) { const x = x0 + gap * i; E.push(VL(x, y - 0.06, 0.12, GRID, 0.5)); if (i < page) E.push(...stone(x, y, d, i % 2 === 0)); }
+      E.push(ring(x0 + gap * (page - 1), y, d));
+      E.push(TX(x1 - 2, y - 0.5, 2.2, 0.26, `${pad2(page)} / ${pad2(n)}`, { size: 9, color: MUTED, font: th.body, align: 'right' }));
+      return { E, body: { x: 0.8, y: 1.7, w: SW - 1.6, h: 4.75 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.08, ib.y - 0.08, ib.w + 0.16, ib.h + 0.16, null, { line: GRID, lw: 0.5 })],
+    drawMarker: (th, x, y, size, n) => stone(x + size * 0.32, y + size * 0.55, size * 0.62, !(n % 2)),
+    drawCard: (th, x, y, w, h, i) => [R(x, y, w, h, W, { line: th.line, lw: 0.75 }), HL(x + 0.55, y + 0.55, w - 0.55, GRID, 0.5), VL(x + 0.55, y, 0.3, GRID, 0.5), ...stone(x + 0.55, y + 0.55, 0.5, i % 2 === 0, i + 1, 14)],
+  };
+}
+// 2026-11-14：元素周期表——白底细线方格，一格一个元素（原子序数、符号、中文名）；封面是周期表前三周期的轮廓，点亮碳氮氧；章节页是一个大元素格，第几章就是第几号元素；内容页底部一排小格随页数点亮；结尾点亮最右边的稀有气体，写「反应完成」
+{
+  const INK = '1D2329'; const BLU = '2B4C9B'; const GRID = 'C3C8CF'; const MUTED = '6E7580'; const W = 'FFFFFF'; const SOFT = 'EEF1F7';
+  const EL = [['H', '氢', '1.008'], ['He', '氦', '4.003'], ['Li', '锂', '6.94'], ['Be', '铍', '9.012'], ['B', '硼', '10.81'], ['C', '碳', '12.01'], ['N', '氮', '14.01'], ['O', '氧', '16.00'], ['F', '氟', '19.00'], ['Ne', '氖', '20.18'], ['Na', '钠', '22.99'], ['Mg', '镁', '24.31'], ['Al', '铝', '26.98'], ['Si', '硅', '28.09'], ['P', '磷', '30.97'], ['S', '硫', '32.06'], ['Cl', '氯', '35.45'], ['Ar', '氩', '39.95']];
+  // 前三周期在表里的位置：[行, 列]
+  const POS = [[0, 0], [0, 17], [1, 0], [1, 1], [1, 12], [1, 13], [1, 14], [1, 15], [1, 16], [1, 17], [2, 0], [2, 1], [2, 12], [2, 13], [2, 14], [2, 15], [2, 16], [2, 17]];
+  // 一个元素格
+  const tile = (x, y, s, z, lit = false, big = false) => {
+    const [sym, name, mass] = EL[(z - 1) % EL.length]; const fg = lit ? W : INK; const sub = lit ? 'DCE3F2' : MUTED;
+    const E = [R(x, y, s, s, lit ? BLU : W, { line: lit ? BLU : GRID, lw: big ? 1.5 : 0.75 })];
+    E.push(TX(x + s * 0.07, y + s * 0.05, s * 0.6, s * 0.22, String(z), { size: Math.max(6, Math.round(s * 72 * 0.15)), color: sub, font: '微软雅黑', ls: 1 }));
+    E.push(TX(x, y + s * 0.2, s, s * 0.46, sym, { size: Math.round(s * 72 * 0.36), bold: true, color: fg, font: '微软雅黑', align: 'center', valign: 'middle', ls: 1 }));
+    E.push(TX(x, y + s * 0.66, s, s * 0.22, name, { size: Math.max(6, Math.round(s * 72 * 0.14)), color: fg, font: '微软雅黑', align: 'center', valign: 'middle', ls: 1 }));
+    if (big) E.push(TX(x, y + s * 0.84, s, s * 0.12, mass, { size: Math.round(s * 72 * 0.07), color: sub, font: '微软雅黑', align: 'center', valign: 'middle', ls: 1 }));
+    return E;
+  };
+  const table = (x0, y0, s, lit) => POS.flatMap(([r, c], i) => tile(x0 + c * s, y0 + r * s, s, i + 1, lit.includes(i + 1)));
+  THEMES.d20261114 = {
+    name: '元素周期表', daily: '2026-11-14',
+    main: BLU, soft: SOFT, accent: BLU, bg: W, text: INK, muted: MUTED, line: 'DDE1E6', head: '黑体', body: '微软雅黑', marker: 'square', card: 'line',
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, W)];
+      E.push(TX(0.9, 1.0, 9.5, 2.5, title, { size: fitPt(title, 9.5, 2.5, 48, 22, 1.15), bold: true, color: INK, font: th.head, valign: 'bottom', ls: 1.15 }));
+      const sz = 0.64; const x0 = (SW - 18 * sz) / 2; const y0 = 4.15;
+      E.push(...table(x0, y0, sz, [6, 7, 8]));
+      // 表中间空出来的地方写副标题和署名
+      const nx = x0 + 2 * sz + 0.25; const nw = 10 * sz - 0.5;
+      if (s.sub) E.push(TX(nx, y0 + sz + 0.1, nw, 0.6, s.sub, { size: fitPt(s.sub, nw, 0.6, 16, 10, 1.2), color: MUTED, font: th.body }));
+      if (s.foot) E.push(TX(nx, y0 + sz * 2 + 0.25, nw, 0.4, s.foot, { size: fitPt(s.foot, nw, 0.4, 12, 8, 1.2), color: INK, font: th.body }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, W)];
+      E.push(...tile(0.9, 1.9, 3.1, no, true, true));
+      E.push(TX(4.6, 2.2, 6, 0.4, `第${CN_NUM[(no - 1) % 10]}部分`, { size: 15, color: BLU, font: th.body, cs: 2 }), HL(4.6, 2.75, 0.6, BLU, 1.5));
+      E.push(TX(4.6, 3.0, SW - 5.4, 1.8, t, { size: fitPt(t, SW - 5.4, 1.8, 42, 22, 1.2), bold: true, color: INK, font: th.head, valign: 'top', ls: 1.2 }));
+      if (s.sub) E.push(TX(4.6, 4.85, SW - 5.4, 0.5, s.sub, { size: fitPt(s.sub, SW - 5.4, 0.5, 16, 11, 1.2), color: MUTED, font: th.body }));
+      return E;
+    },
+    end(th, s, deck) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, W)];
+      E.push(TX(0.9, 0.95, 8.5, 2.0, t, { size: fitPt(t, 8.5, 2.0, 60, 28, 1.1), bold: true, color: INK, font: th.head, valign: 'bottom', ls: 1.1 }));
+      E.push(TX(0.9, 3.05, 8.5, 0.5, s.sub || '反应完成', { size: s.sub ? fitPt(s.sub, 8.5, 0.5, 18, 11, 1.2) : 16, color: MUTED, font: th.body, cs: s.sub ? 0 : 3 }));
+      const sz = 0.64; E.push(...table((SW - 18 * sz) / 2, 4.15, sz, [2, 10, 18]));
+      return E;
+    },
+    frame(th, s, deck, page, contentNo) {
+      const t = s.title || '';
+      const n = deck.slides.length;
+      const E = [R(0, 0, SW, SH, W)];
+      E.push(...tile(0.8, 0.4, 0.82, contentNo, true));
+      E.push(TX(1.85, 0.45, SW - 2.65, 0.72, t, { size: fitPt(t, SW - 2.65, 0.72, 26, 14, 1.1), bold: true, color: INK, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(HL(1.85, 1.22, SW - 2.65, th.line, 0.75));
+      // 底部一排小方格：一页一格，看过的点亮
+      const y = SH - 0.55; const x0 = 0.8; const x1 = SW - 0.8; const cw = Math.min(0.24, (x1 - x0) / n); const g = cw * 0.18;
+      for (let i = 0; i < n; i++) E.push(R(x0 + i * cw, y, cw - g, cw - g, i < page ? (i === page - 1 ? BLU : 'A9B7D6') : W, { line: i < page ? (i === page - 1 ? BLU : 'A9B7D6') : GRID, lw: 0.5 }));
+      E.push(TX(x1 - 2, y - 0.02, 2, 0.26, `${pad2(page)} / ${pad2(n)}`, { size: 9, color: MUTED, font: th.body, align: 'right', valign: 'middle' }));
+      return { E, body: { x: 0.8, y: 1.5, w: SW - 1.6, h: 5.0 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.08, ib.y - 0.08, ib.w + 0.16, ib.h + 0.16, null, { line: GRID, lw: 0.75 })],
+    drawCard: (th, x, y, w, h, i) => [R(x, y, w, h, W, { line: GRID, lw: 0.75 }), R(x, y, w, 0.06, BLU), TX(x + 0.3, y + 0.22, 1, 0.3, String(i + 1), { size: 11, color: MUTED, font: '微软雅黑', ls: 1 }), TX(x + 0.3, y + 0.42, 1.6, 0.45, EL[i % EL.length][0], { size: 22, bold: true, color: BLU, font: '微软雅黑', ls: 1 })],
   };
 }
 /* ===== 每日新风格结束 ===== */
