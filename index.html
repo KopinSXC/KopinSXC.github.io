@@ -4791,6 +4791,91 @@ function composeSlide(s, deck) {
     drawCard: (th, x, y, w, h, i) => [R(x, y, w, h, W, { line: GRID, lw: 0.75 }), R(x, y, w, 0.06, BLU), TX(x + 0.3, y + 0.22, 1, 0.3, String(i + 1), { size: 11, color: MUTED, font: '微软雅黑', ls: 1 }), TX(x + 0.3, y + 0.42, 1.6, 0.45, EL[i % EL.length][0], { size: 22, bold: true, color: BLU, font: '微软雅黑', ls: 1 })],
   };
 }
+// 2026-11-15：线装古籍——封面是靛青书衣，右边四眼订线，左上角贴一张竖写书名的题签；内页是朱丝栏：朱红双线版框、竖格栏线，章节叫「卷一」，标题竖着从右往左写；内容页有朱红版框和鱼尾；结尾写「全书完」
+{
+  const PAPER = 'F3F1EC'; const INK = '1F1D1A'; const RED = 'B83A2B'; const INDIGO = '2D3A4E'; const MUTED = '6F6A62'; const THREAD = 'E4DFD3'; const RULE = 'D9A79D';
+  // 竖排文字：一字一格，从右往左换列；自动找能放下的字号
+  const vtext = (xr, y, h, colW, text, { max = 40, min = 12, maxCols = 3, color = INK, bold = true, font = '楷体' } = {}) => {
+    const chars = [...String(text || '')].filter((c) => c !== ' ' && c !== '\n');
+    // 优先少分列：每多一列，要求的最小字号放宽一些
+    const fit = (cols) => Math.floor(Math.min(max, (colW * 0.85) * 72, (h / Math.ceil(chars.length / cols)) * 72 / 1.18));
+    let cols = 1; while (cols < maxCols && fit(cols) < Math.max(min, max * 0.6)) cols++;
+    const pt = Math.max(min, fit(cols)); const per = Math.max(1, Math.floor(h / ((pt * 1.18) / 72)));
+    const ch = (pt * 1.18) / 72; const E = [];
+    chars.forEach((c, i) => { const col = Math.floor(i / per); const row = i % per; E.push(TX(xr - (col + 1) * colW, y + row * ch, colW, ch, c, { size: pt, bold, color, font, align: 'center', valign: 'middle', ls: 1 })); });
+    return { E, cols: Math.max(1, Math.ceil(chars.length / per)) };
+  };
+  // 版框：外粗内细两道朱红线
+  const frameBox = (x, y, w, h) => [R(x, y, w, h, null, { line: RED, lw: 2.25 }), R(x + 0.07, y + 0.07, w - 0.14, h - 0.14, null, { line: RED, lw: 0.75 })];
+  // 鱼尾：一块黑色，下边挖一个三角缺口
+  const fishTail = (cx, y, w) => [R(cx - w / 2, y, w, w * 0.45, INK), TRI(cx - w / 2, y + w * 0.2, w / 2, w * 0.25, PAPER, { flipH: false }), TRI(cx, y + w * 0.2, w / 2, w * 0.25, PAPER, { flipH: true })];
+  // 内页：版框 + 竖格栏线 + 左边版心
+  const page = () => {
+    const x = 0.6; const y = 0.5; const w = SW - 1.2; const h = SH - 1.0; const E = [R(0, 0, SW, SH, PAPER), ...frameBox(x, y, w, h)];
+    const bx = x + 0.07 + 0.75; E.push(VL(bx, y + 0.07, h - 0.14, RED, 0.75));
+    for (let cx = x + w - 0.07 - 0.9; cx > bx + 0.3; cx -= 0.9) E.push(VL(cx, y + 0.07, h - 0.14, RULE, 0.5));
+    E.push(...fishTail(x + 0.07 + 0.375, y + 1.3, 0.5));
+    return { E, bx, top: y + 0.3, bottom: y + h - 0.3, right: x + w - 0.07 };
+  };
+  THEMES.d20261115 = {
+    name: '线装古籍', daily: '2026-11-15',
+    main: INDIGO, soft: 'E9E5DC', accent: RED, bg: PAPER, text: INK, muted: MUTED, line: 'D8D2C6', head: '楷体', body: '微软雅黑', marker: 'diamond', card: 'frame',
+    headFill: INDIGO, headText: PAPER, rows: [PAPER, 'E9E5DC'], tableText: INK,
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, INDIGO)];
+      // 右边四眼订线
+      const sx = SW - 0.85; const holes = [0.75, 2.6, 4.9, 6.75];
+      E.push(VL(sx, holes[0], holes[3] - holes[0], THREAD, 1.25));
+      holes.forEach((hy) => E.push(HL(sx, hy, SW - sx, THREAD, 1.25), O(sx - 0.05, hy - 0.05, 0.1, 0.1, '1A2230')));
+      E.push(VL(SW - 1.25, 0, SH, '3A4860', 0.75));
+      // 左上角题签
+      const r = vtext(0, 0, 4.3, 0.8, title, { max: 34, min: 14, maxCols: 3 });
+      const sw = r.cols * 0.8 + 0.4; const slx = 0.9; const sly = 0.75;
+      E.push(R(slx, sly, sw, 4.9, PAPER), R(slx + 0.08, sly + 0.08, sw - 0.16, 4.74, null, { line: INK, lw: 0.5 }));
+      E.push(...vtext(slx + sw - 0.2, sly + 0.3, 4.3, 0.8, title, { max: 34, min: 14, maxCols: 3 }).E);
+      if (s.sub) E.push(TX(slx + sw + 0.5, SH - 1.6, SW - slx - sw - 2.2, 0.5, s.sub, { size: fitPt(s.sub, SW - slx - sw - 2.2, 0.5, 16, 10, 1.2), color: 'C9CED8', font: th.head }));
+      if (s.foot) E.push(TX(slx + sw + 0.5, SH - 1.05, SW - slx - sw - 2.2, 0.4, s.foot, { size: fitPt(s.foot, SW - slx - sw - 2.2, 0.4, 12, 8, 1.2), color: '9AA3B3', font: th.body }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const P = page(); const E = P.E;
+      E.push(...vtext(P.bx + 0.75, P.top + 1.35, 1.5, 0.75, `卷${CN_NUM[(no - 1) % 10]}`, { max: 16, min: 10, maxCols: 1, color: INK, bold: false }).E);
+      const r = vtext(P.right - 0.0, P.top + 0.2, P.bottom - P.top - 0.4, 0.9, t, { max: 54, min: 18, maxCols: 3 });
+      E.push(...r.E);
+      if (s.sub) E.push(...vtext(P.right - r.cols * 0.9 - 0.9, P.top + 1.2, P.bottom - P.top - 1.4, 0.9, s.sub, { max: 18, min: 10, maxCols: 2, color: MUTED, bold: false }).E);
+      E.push(...vtext(P.right - (r.cols + (s.sub ? 3 : 1)) * 0.9, P.top + 0.2, 1.6, 0.9, `卷${CN_NUM[(no - 1) % 10]}`, { max: 22, min: 12, maxCols: 1, color: RED }).E);
+      return E;
+    },
+    end(th, s, deck) {
+      const t = s.title || '谢谢！';
+      const P = page(); const E = P.E;
+      const r = vtext(P.right, P.top + 0.4, P.bottom - P.top - 0.8, 0.9, t, { max: 48, min: 20, maxCols: 3 });
+      E.push(...r.E);
+      E.push(...vtext(P.right - (r.cols + 1) * 0.9, P.top + 0.4, P.bottom - P.top - 0.8, 0.9, s.sub || '全书完', { max: 26, min: 10, maxCols: 2, color: MUTED, bold: false }).E);
+      E.push(R(P.right - (r.cols + 3) * 0.9 + 0.1, P.bottom - 1.5, 0.7, 0.7, null, { line: RED, lw: 2 }), TX(P.right - (r.cols + 3) * 0.9 + 0.1, P.bottom - 1.5, 0.7, 0.7, '终', { size: 24, bold: true, color: RED, font: '楷体', align: 'center', valign: 'middle', ls: 1 }));
+      return E;
+    },
+    frame(th, s, deck, pg, contentNo) {
+      const t = s.title || '';
+      const n = deck.slides.length;
+      const x = 0.5; const y = 0.4; const w = SW - 1.0; const h = SH - 0.8;
+      const E = [R(0, 0, SW, SH, PAPER), ...frameBox(x, y, w, h)];
+      // 右边版心：一条窄栏，上面鱼尾，下面页码
+      const bx = x + w - 0.07 - 0.6; E.push(VL(bx, y + 0.07, h - 0.14, RED, 0.75));
+      E.push(...fishTail(bx + 0.3, y + 0.5, 0.4));
+      const sec = deck.slides.slice(0, pg).filter((z) => z.layout === 'section').length;
+      if (sec) E.push(...vtext(bx + 0.6, y + 0.95, 1.2, 0.6, `卷${CN_NUM[(sec - 1) % 10]}`, { max: 13, min: 9, maxCols: 1, color: INK, bold: false }).E);
+      E.push(TX(bx, y + h - 0.6, 0.6, 0.3, String(pg), { size: 10, color: MUTED, font: th.body, align: 'center', ls: 1 }));
+      E.push(TX(x + 0.35, y + 0.25, bx - x - 0.6, 0.7, t, { size: fitPt(t, bx - x - 0.6, 0.7, 26, 14, 1.1), bold: true, color: INK, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(HL(x + 0.07, y + 1.1, bx - x - 0.07, RED, 0.75));
+      return { E, body: { x: x + 0.35, y: y + 1.35, w: bx - x - 0.6, h: h - 1.65 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.08, ib.y - 0.08, ib.w + 0.16, ib.h + 0.16, null, { line: RED, lw: 0.75 })],
+    drawMarker: (th, x, y, size) => [O(x, y + size * 0.25, size * 0.5, size * 0.5, null, { line: RED, lw: 1.5 })],
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
