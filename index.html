@@ -4876,6 +4876,109 @@ function composeSlide(s, deck) {
     drawMarker: (th, x, y, size) => [O(x, y + size * 0.25, size * 0.5, size * 0.5, null, { line: RED, lw: 1.5 })],
   };
 }
+// 2026-11-16：胶片印样——像暗房里印出来的整卷底片小样：白相纸上横着黑色胶片条，上下两排齿孔，片边印着琥珀色的小号码；标题在一格画面里，被红色蜡笔圈出来；章节是竖着的一段胶片，第几章就停在第几格；内容页左边一条细胶片，红框随页数往下走；结尾是一卷片的末尾，写「全片完」
+{
+  const PAPER = 'F4F3EF'; const FILM = '1E1D1B'; const WIN = 'E4E1DA'; const EDGE = 'C98A3E'; const RED = 'C23B2E'; const MUTED = '6E6A63';
+  // 横向胶片：y 起点，h 高度；frames 每格 { x, w, fill }，num 片边号码
+  const stripH = (x, y, w, h, frames, num0 = 12) => {
+    const k = h / 35; const band = 6.6 * k; const hw = 1.9 * k; const hh = 2.4 * k; const pitch = 4.75 * k;
+    const E = [R(x, y, w, h, FILM)];
+    // 齿孔靠里，外侧留出一条印号码的片边
+    for (let hx = x + pitch * 0.4; hx + hw < x + w; hx += pitch) {
+      E.push(R(hx, y + band - hh - 0.8 * k, hw, hh, PAPER, { r: 0.03 }), R(hx, y + h - band + 0.8 * k, hw, hh, PAPER, { r: 0.03 }));
+    }
+    const win = [];
+    frames.forEach((f, i) => {
+      E.push(R(f.x, y + band, f.w, h - band * 2, f.fill || WIN));
+      win.push({ x: f.x, y: y + band, w: f.w, h: h - band * 2 });
+      const n = num0 + i; const ts = Math.max(6, Math.min(10, 1.8 * k * 72));
+      if (f.x > x - 0.2 && f.x + 1.2 < x + w) E.push(TX(f.x + 0.05, y + h - 3.3 * k, 1.6, 3.0 * k, `${n}　　▸${n}A`, { size: ts, color: EDGE, font: '黑体', valign: 'middle', ls: 1 }));
+    });
+    return { E, win, band };
+  };
+  // 竖向胶片
+  const stripV = (x, y, w, h, frames) => {
+    const k = w / 35; const band = 5.4 * k; const hw = 2.6 * k; const hh = 1.9 * k; const pitch = 4.75 * k;
+    const E = [R(x, y, w, h, FILM)];
+    for (let hy = y + pitch * 0.4; hy + hh < y + h; hy += pitch) {
+      E.push(R(x + (band - hw) / 2, hy, hw, hh, PAPER, { r: 0.02 }), R(x + w - band + (band - hw) / 2, hy, hw, hh, PAPER, { r: 0.02 }));
+    }
+    const win = frames.map((f) => { E.push(R(x + band, f.y, w - band * 2, f.h, f.fill || WIN)); return { x: x + band, y: f.y, w: w - band * 2, h: f.h }; });
+    return { E, win, band };
+  };
+  // 红色蜡笔圈：圆角框，略大一圈
+  const pencil = (b, pad = 0.14, lw = 2.5) => R(b.x - pad, b.y - pad, b.w + pad * 2, b.h + pad * 2, null, { line: RED, lw, r: 0.18 });
+  THEMES.d20261116 = {
+    name: '胶片印样', daily: '2026-11-16',
+    main: FILM, soft: 'EAE7E0', accent: RED, bg: PAPER, text: FILM, muted: MUTED, line: 'D6D2C9', head: '黑体', body: '微软雅黑', marker: 'square', card: 'rule',
+    headFill: FILM, headText: PAPER, rows: [PAPER, 'EAE7E0'], tableText: FILM,
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, PAPER)];
+      const y = 1.25; const h = 4.3; const fw = 5.7; const gap = 0.32; const x1 = 3.2;
+      const fr = [{ x: x1 - gap - fw, w: fw }, { x: x1, w: fw, fill: PAPER }, { x: x1 + fw + gap, w: fw }];
+      const st = stripH(-0.2, y, SW + 0.4, h, fr, 23); E.push(...st.E);
+      const tw = st.win[1];
+      E.push(pencil(tw, 0.2, 3));
+      E.push(TX(tw.x + 0.35, tw.y + 0.3, tw.w - 0.7, tw.h - 0.6, title, { size: fitPt(title, tw.w - 0.7, tw.h - 0.6, 40, 20, 1.15), bold: true, color: FILM, font: th.head, valign: 'middle', ls: 1.15 }));
+      if (s.sub) E.push(TX(x1, y + h + 0.35, SW - x1 - 0.8, 0.6, s.sub, { size: fitPt(s.sub, SW - x1 - 0.8, 0.6, 20, 12, 1.2), color: MUTED, font: th.body }));
+      if (s.foot) E.push(TX(x1, SH - 0.75, SW - x1 - 0.8, 0.35, s.foot, { size: fitPt(s.foot, SW - x1 - 0.8, 0.35, 13, 9, 1.2), color: FILM, font: th.body }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, PAPER)];
+      const sx = 1.0; const sw = 3.1; const fh = 2.0; const gap = 0.22;
+      // 让第 no 格停在页面中间
+      const mid = (SH - fh) / 2; const frames = [];
+      for (let i = -3; i <= 3; i++) frames.push({ y: mid + i * (fh + gap), h: fh, fill: i === 0 ? PAPER : WIN });
+      const st = stripV(sx, -0.2, sw, SH + 0.4, frames); E.push(...st.E);
+      const cur = st.win[3];
+      E.push(TX(cur.x, cur.y, cur.w, cur.h, pad2(no), { size: 72, bold: true, color: FILM, font: th.head, align: 'center', valign: 'middle', ls: 1 }));
+      E.push(pencil(cur, 0.12, 3));
+      [-1, 1].forEach((d) => { const f = st.win[3 + d]; if (no + d > 0) E.push(TX(f.x, f.y, f.w, f.h, pad2(no + d), { size: 40, bold: true, color: 'C4C0B7', font: th.head, align: 'center', valign: 'middle', ls: 1 })); });
+      const tx = sx + sw + 1.0; const tw = SW - tx - 0.8;
+      E.push(TX(tx, 1.75, tw, 0.45, `第 ${no} 卷`, { size: 16, color: RED, font: th.body, cs: 2 }));
+      E.push(TX(tx, 2.25, tw, 2.0, t, { size: fitPt(t, tw, 2.0, 44, 22, 1.15), bold: true, color: FILM, font: th.head, valign: 'top', ls: 1.15 }));
+      E.push(HL(tx, 4.5, 1.6, FILM, 1));
+      if (s.sub) E.push(TX(tx, 4.75, tw, 1.0, s.sub, { size: fitPt(s.sub, tw, 1.0, 20, 12, 1.25), color: MUTED, font: th.body }));
+      return E;
+    },
+    end(th, s) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, PAPER)];
+      const y = 1.25; const h = 4.3; const fw = 5.7; const gap = 0.32; const x1 = 1.4;
+      const tail = x1 + fw + 1.5; // 片尾：最后一格后面一小段空片，直接剪断
+      const fr = [{ x: x1 - gap - fw, w: fw }, { x: x1, w: fw, fill: PAPER }];
+      const st = stripH(-0.2, y, tail + 0.2, h, fr, 36); E.push(...st.E);
+      const tw = st.win[1];
+      E.push(TX(tw.x + 0.35, tw.y + 0.3, tw.w - 0.7, tw.h - 0.6, t, { size: fitPt(t, tw.w - 0.7, tw.h - 0.6, 54, 24, 1.1), bold: true, color: FILM, font: th.head, align: 'center', valign: 'middle', ls: 1.1 }));
+      E.push(pencil(tw, 0.2, 3));
+      const nx = tail + 0.8; const nw = SW - nx - 0.5;
+      E.push(TX(nx, y + h - 0.9, nw, 0.5, '全片完', { size: 22, bold: true, color: RED, font: th.head, cs: 2 }));
+      E.push(R(nx, y + h - 0.3, 1.1, 0.06, RED, { r: 0.03 }));
+      if (s.sub) E.push(TX(x1, y + h + 0.35, SW - x1 - 0.8, 0.8, s.sub, { size: fitPt(s.sub, SW - x1 - 0.8, 0.8, 20, 12, 1.2), color: MUTED, font: th.body }));
+      return E;
+    },
+    frame(th, s, deck, pg) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, PAPER)];
+      // 左边一条细胶片，红框随页数往下走
+      const sw = 0.62; const fh = 0.66; const gap = 0.08; const n = 10; const y0 = (SH - n * fh - (n - 1) * gap) / 2;
+      const frames = []; for (let i = 0; i < n; i++) frames.push({ y: y0 + i * (fh + gap), h: fh });
+      const st = stripV(0.4, -0.1, sw, SH + 0.2, frames); E.push(...st.E);
+      E.push(pencil(st.win[(pg - 1) % n], 0.07, 1.75));
+      const x = 1.55; const w = SW - x - 0.7;
+      E.push(TX(x, 0.45, w, 0.8, t, { size: fitPt(t, w, 0.8, 28, 16, 1.1), bold: true, color: FILM, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(R(x, 1.35, 1.2, 0.06, RED, { r: 0.03 }), HL(x + 1.3, 1.38, w - 1.3, 'D6D2C9', 0.75));
+      E.push(TX(x, SH - 0.5, 8, 0.3, deck.title, { size: 10, color: MUTED, font: th.body }));
+      E.push(TX(SW - 2.2, SH - 0.5, 1.5, 0.3, `▸${pg}A`, { size: 11, bold: true, color: EDGE, font: '黑体', align: 'right', ls: 1 }));
+      return { E, body: { x, y: 1.7, w, h: SH - 2.45 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.1, ib.y - 0.1, ib.w + 0.2, ib.h + 0.2, null, { line: FILM, lw: 4 })],
+    drawMarker: (th, x, y, size) => [R(x, y + size * 0.22, size * 0.62, size * 0.5, null, { line: FILM, lw: 1.5 }), R(x + size * 0.17, y + size * 0.36, size * 0.28, size * 0.22, RED)],
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
