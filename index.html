@@ -4979,6 +4979,112 @@ function composeSlide(s, deck) {
     drawMarker: (th, x, y, size) => [R(x, y + size * 0.22, size * 0.62, size * 0.5, null, { line: FILM, lw: 1.5 }), R(x + size * 0.17, y + size * 0.36, size * 0.28, size * 0.22, RED)],
   };
 }
+// 2026-11-17：等高线地形图——米白图纸上一圈圈细棕色等高线，每隔几圈一道粗的计曲线，线上标着海拔数字；山顶是一个红色三角点。章节是「第 1 幅」图幅，内容页有地图的双线图廓、经纬刻度、指北针和黑白比例尺；结尾在山顶写「登顶」
+{
+  const PAPER = 'F5F2EA'; const INK = '2A2622'; const BROWN = 'B48A5E'; const BROWN2 = 'D7C2A6'; const RED = 'C0392B'; const MUTED = '766E64';
+  // 一座山：一圈圈椭圆，越往上越小，圆心慢慢偏移，看着像真的地形
+  // 一座山：一圈圈椭圆往里收，圆心往一边慢慢偏，一边密（陡坡）一边疏（缓坡），偏的方向还会稍稍拐弯
+  // 返回图元和山顶位置；每圈偏移小于圈距，所以线不会交叉
+  const hill = (cx, cy, n, step, { asp = 1.35, dir = 2.4, k = 0.55, base = 100, gap = 50, label = true } = {}) => {
+    const E = []; const labels = []; const C = [[cx, cy]];
+    for (let i = 1; i < n; i++) { const a = dir + 0.45 * Math.sin(i * 0.9); const [px, py] = C[i - 1]; C.push([px + Math.cos(a) * step * k * asp, py - Math.sin(a) * step * k]); }
+    for (let i = n; i >= 1; i--) {
+      const r = i * step; const [ox, oy] = C[n - i]; const idx = (n - i) % 4 === 0;
+      E.push(O(ox - r * asp, oy - r, r * 2 * asp, r * 2, null, { line: idx ? BROWN : BROWN2, lw: idx ? 1.25 : 0.6 }));
+      const lx = ox + r * asp * 0.71; const ly = oy + r * 0.71;
+      if (label && idx && i > 1 && lx > 0.8 && lx < SW - 0.8 && ly > 0.8 && ly < SH - 0.8) labels.push({ x: lx, y: ly, t: String(base + (n - i) * gap) });
+    }
+    // 计曲线上的海拔数字，底下垫一小块纸色把线断开
+    labels.forEach((l) => { const w = 0.08 * l.t.length + 0.12; E.push(R(l.x - w / 2, l.y - 0.1, w, 0.2, PAPER), TX(l.x - w / 2, l.y - 0.1, w, 0.2, l.t, { size: 8, color: BROWN, font: '黑体', align: 'center', valign: 'middle', ls: 1 })); });
+    const top = C[n - 1]; E.top = top;
+    return E;
+  };
+  // 三角点：红色小三角 + 中心点
+  const peak = (x, y, s = 0.3) => [TRI(x - s / 2, y - s * 0.8, s / 2, s * 0.8, RED, { flipH: true }), TRI(x, y - s * 0.8, s / 2, s * 0.8, RED), O(x - 0.03, y - s * 0.35, 0.06, 0.06, PAPER)];
+  // 指北针
+  const north = (x, y, s = 0.5) => [TRI(x - s * 0.18, y, s * 0.18, s, INK, { flipH: true }), TRI(x, y, s * 0.18, s, null), LN(x, y, x + s * 0.18, y + s, INK, 0.75), VL(x, y, s, INK, 0.75), TX(x - 0.2, y - 0.3, 0.4, 0.25, '北', { size: 10, bold: true, color: INK, font: '黑体', align: 'center', valign: 'middle', ls: 1 })];
+  // 比例尺：黑白相间
+  const scale = (x, y, seg = 0.4) => {
+    const E = []; for (let i = 0; i < 4; i++) E.push(R(x + i * seg, y, seg, 0.07, i % 2 ? PAPER : INK, { line: INK, lw: 0.5 }));
+    ['0', '1', '2 千米'].forEach((t, i) => E.push(TX(x + i * seg * 2 - 0.2, y + 0.1, i === 2 ? 0.8 : 0.4, 0.2, t, { size: 7, color: MUTED, font: th0, align: i === 2 ? 'left' : 'center', ls: 1 })));
+    return E;
+  };
+  const th0 = '微软雅黑';
+  // 图廓：外粗内细两道线，中间是经纬刻度；外面用纸色盖住等高线
+  const neat = (x, y, w, h, ticks = true) => {
+    const E = [R(0, 0, SW, y, PAPER), R(0, y + h, SW, SH - y - h, PAPER), R(0, 0, x, SH, PAPER), R(x + w, 0, SW - x - w, SH, PAPER)];
+    E.push(R(x, y, w, h, null, { line: INK, lw: 1.75 }), R(x + 0.1, y + 0.1, w - 0.2, h - 0.2, null, { line: INK, lw: 0.5 }));
+    if (ticks) {
+      for (let tx = x + 1.0, i = 0; tx < x + w - 0.3; tx += 1.0, i++) E.push(R(tx, y, 0.5, 0.1, INK), R(tx, y + h - 0.1, 0.5, 0.1, INK));
+      for (let ty = y + 1.0; ty < y + h - 0.3; ty += 1.0) E.push(R(x, ty, 0.1, 0.5, INK), R(x + w - 0.1, ty, 0.1, 0.5, INK));
+    }
+    return E;
+  };
+  THEMES.d20261117 = {
+    name: '等高线地形图', daily: '2026-11-17',
+    main: INK, soft: 'ECE5D8', accent: RED, bg: PAPER, text: INK, muted: MUTED, line: 'DCD2C2', head: '黑体', body: '微软雅黑', marker: 'dot', card: 'rule',
+    headFill: INK, headText: PAPER, rows: [PAPER, 'ECE5D8'], tableText: INK,
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, PAPER)];
+      const H = hill(9.2, 4.6, 14, 0.3, { dir: 0.5, base: 200 }); const [px, py] = H.top;
+      E.push(...H, ...hill(13.7, 7.9, 6, 0.3, { dir: 2.6, label: false }));
+      E.push(...peak(px, py + 0.12, 0.34), TX(px + 0.3, py - 0.3, 1.5, 0.3, '1186.4', { size: 10, bold: true, color: RED, font: th.body, ls: 1 }));
+      E.push(...neat(0.35, 0.35, SW - 0.7, SH - 0.7, false));
+      E.push(...north(SW - 1.05, 0.9, 0.55));
+      E.push(R(0.85, 1.05, 5.9, 4.9, PAPER));
+      E.push(TX(1.0, 1.15, 5, 0.35, '图名', { size: 11, color: MUTED, font: th.body, cs: 4 }));
+      E.push(TX(1.0, 1.6, 5.6, 2.6, title, { size: fitPt(title, 5.6, 2.6, 44, 22, 1.15), bold: true, color: INK, font: th.head, valign: 'top', ls: 1.15 }));
+      E.push(HL(1.0, 4.4, 5.6, INK, 1.5), HL(1.0, 4.47, 5.6, INK, 0.5));
+      if (s.sub) E.push(TX(1.0, 4.65, 5.6, 0.7, s.sub, { size: fitPt(s.sub, 5.6, 0.7, 18, 11, 1.2), color: MUTED, font: th.body }));
+      if (s.foot) E.push(TX(1.0, 5.45, 5.6, 0.35, s.foot, { size: fitPt(s.foot, 5.6, 0.35, 12, 8, 1.2), color: INK, font: th.body }));
+      E.push(...scale(1.0, SH - 1.05));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, PAPER)];
+      const H = hill(2.4, 4.4, 11, 0.32, { dir: 0.7, base: 100 + no * 100 }); const [px, py] = H.top;
+      E.push(...H, ...neat(0.35, 0.35, SW - 0.7, SH - 0.7, true));
+      E.push(R(px - 0.75, py - 0.5, 1.5, 1.0, PAPER), TX(px - 0.9, py - 0.55, 1.8, 1.1, pad2(no), { size: 54, bold: true, color: INK, font: th.head, align: 'center', valign: 'middle', ls: 1 }));
+      E.push(...peak(px, py - 0.62, 0.3));
+      const tx = 6.6; const tw = SW - tx - 1.0;
+      E.push(TX(tx, 1.9, tw, 0.4, `第 ${no} 幅`, { size: 14, color: RED, font: th.body, cs: 3 }));
+      E.push(TX(tx, 2.4, tw, 2.0, t, { size: fitPt(t, tw, 2.0, 42, 22, 1.15), bold: true, color: INK, font: th.head, valign: 'top', ls: 1.15 }));
+      E.push(HL(tx, 4.6, 2.0, INK, 1.5), HL(tx, 4.67, 2.0, INK, 0.5));
+      if (s.sub) E.push(TX(tx, 4.85, tw, 1.0, s.sub, { size: fitPt(s.sub, tw, 1.0, 18, 11, 1.25), color: MUTED, font: th.body }));
+      return E;
+    },
+    end(th, s) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, PAPER)];
+      E.push(...hill(SW / 2 - 1.3, 4.3, 15, 0.27, { asp: 1.9, dir: 0.4, k: 0.4, base: 300 }));
+      E.push(...neat(0.35, 0.35, SW - 0.7, SH - 0.7, false));
+      E.push(R(SW / 2 - 2.6, 2.75, 5.2, 1.35, PAPER));
+      E.push(TX(SW / 2 - 2.6, 2.75, 5.2, 1.35, t, { size: fitPt(t, 5.2, 1.35, 48, 22, 1.1), bold: true, color: INK, font: th.head, align: 'center', valign: 'middle', ls: 1.1 }));
+      E.push(...peak(SW / 2, 2.55, 0.34), TX(SW / 2 + 0.3, 2.1, 1.2, 0.35, '登顶', { size: 14, bold: true, color: RED, font: th.head, ls: 1 }));
+      if (s.sub) { E.push(R(SW / 2 - 3.2, 4.3, 6.4, 0.6, PAPER)); E.push(TX(SW / 2 - 3.2, 4.3, 6.4, 0.6, s.sub, { size: fitPt(s.sub, 6.4, 0.6, 18, 11, 1.2), color: MUTED, font: th.body, align: 'center', valign: 'middle' })); }
+      return E;
+    },
+    frame(th, s, deck, pg) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, PAPER)];
+      // 右上角露出一小片山
+      E.push(...hill(SW - 0.7, 0.2, 5, 0.25, { asp: 1.4, dir: 0.6, label: false }));
+      const x = 0.35; const y = 0.35; const w = SW - 0.7; const h = SH - 0.7;
+      E.push(...neat(x, y, w, h, true));
+      E.push(R(0.75, 0.7, SW - 4.2, 0.85, PAPER));
+      E.push(TX(0.85, 0.7, SW - 4.4, 0.85, t, { size: fitPt(t, SW - 4.4, 0.85, 28, 16, 1.1), bold: true, color: INK, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(HL(0.85, 1.6, 1.2, RED, 2), HL(2.1, 1.6, SW - 3.0, 'DCD2C2', 0.75));
+      E.push(...north(SW - 1.0, 5.85, 0.45));
+      E.push(...scale(0.85, SH - 0.85), TX(SW / 2 - 4, SH - 0.82, 8, 0.25, deck.title, { size: 9, color: MUTED, font: th.body, align: 'center', ls: 1 }));
+      E.push(TX(SW - 2.4, SH - 0.82, 1.0, 0.25, `第 ${pg} 页`, { size: 9, color: INK, font: th.body, align: 'right', ls: 1 }));
+      return { E, body: { x: 0.85, y: 1.9, w: SW - 2.5, h: SH - 3.0 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.08, ib.y - 0.08, ib.w + 0.16, ib.h + 0.16, null, { line: INK, lw: 0.75 })],
+    drawMarker: (th, x, y, size) => [O(x, y + size * 0.2, size * 0.55, size * 0.55, null, { line: BROWN, lw: 1 }), O(x + size * 0.17, y + size * 0.37, size * 0.21, size * 0.21, RED)],
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
