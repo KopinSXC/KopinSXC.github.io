@@ -5175,6 +5175,132 @@ function composeSlide(s, deck) {
     drawMarker: (th, x, y, size) => [R(x, y + size * 0.3, size * 0.45, size * 0.3, INK), R(x + size * 0.5, y + size * 0.3, size * 0.12, size * 0.3, RED)],
   };
 }
+// 2026-11-19：作文稿纸——米白纸上一行行绿色方格，顶上印着「作文纸」和姓名、班级栏；每格写一个楷体字，像手写；老师的红笔是主角：封面标题下一排红圈圈（好句），章节名下画红波浪线，章节号被圈出来，结尾写一个大大的红「优」；内容页底部是一排小格子，写着页码
+{
+  const PAPER = 'FBFAF5'; const INK = '222222'; const GRID = '6E9E7B'; const GRID2 = 'A9C7B1'; const RED = 'CC3426'; const MUTED = '6B6F6A';
+  // 把文字拆成格子：一个汉字或标点占一格，连着的英文数字两个占一格
+  const cellsOf = (t) => {
+    const out = []; let buf = '';
+    for (const ch of String(t || '').replace(/\s+/g, ' ')) {
+      if (ch.charCodeAt(0) < 256 && ch !== ' ') { buf += ch; if (buf.length === 2) { out.push(buf); buf = ''; } continue; }
+      if (buf) { out.push(buf); buf = ''; }
+      if (ch !== ' ') out.push(ch);
+    }
+    if (buf) out.push(buf);
+    return out;
+  };
+  // 一行格子
+  const rowCells = (x, y, n, c, lw = 0.6) => { const E = [HL(x, y, n * c, GRID, lw), HL(x, y + c, n * c, GRID, lw)]; for (let k = 0; k <= n; k++) E.push(VL(x + k * c, y, c, k % 5 === 0 ? GRID : GRID2, 0.5)); return E; };
+  // 一片稿纸：外框粗、里面一行行格子
+  const grid = (x0, y0, cols, rows, c, gap) => {
+    const E = [R(x0 - 0.12, y0 - 0.12, cols * c + 0.24, rows * (c + gap) - gap + 0.24, null, { line: GRID, lw: 1.5 })];
+    for (let r = 0; r < rows; r++) E.push(...rowCells(x0, y0 + r * (c + gap), cols, c));
+    return E;
+  };
+  // 往格子里写字：从第 row 行第 col 格开始，到 colEnd 换行，最多 maxRows 行；返回每个字的位置
+  const write = (G, row, col, colEnd, cells, { color = INK, bold = true, maxRows = 9, font = '楷体' } = {}) => {
+    const E = []; const per = colEnd - col; let r = row; let k = col; const at = [];
+    const n = Math.min(cells.length, per * maxRows);
+    for (let i = 0; i < n; i++) {
+      if (k >= colEnd) { r++; k = col; }
+      let t = cells[i]; if (i === n - 1 && n < cells.length) t = '…';
+      const x = G.x0 + k * G.c; const y = G.y0 + r * (G.c + G.gap);
+      E.push(TX(x, y, G.c, G.c, t, { size: G.c * 72 * (t.length > 1 ? 0.5 : 0.68), bold, color, font, align: 'center', valign: 'middle', ls: 1 }));
+      at.push({ x, y, r }); k++;
+    }
+    return { E, rows: r - row + 1, at };
+  };
+  const writeCenter = (G, row, cells, o = {}) => {
+    if (cells.length <= G.cols - 4) return write(G, row, Math.floor((G.cols - cells.length) / 2), G.cols, cells, { ...o, maxRows: 1 });
+    return write(G, row, 1, G.cols - 1, cells, o);
+  };
+  // 红笔：字底下的小圈圈（好词好句）
+  const dots = (G, at) => at.map((p) => O(p.x + G.c / 2 - 0.045, p.y + G.c + G.gap / 2 - 0.045, 0.09, 0.09, null, { line: RED, lw: 1 }));
+  // 红笔：波浪线，按行分段画在字底下的窄缝里
+  const wavy = (G, at) => {
+    const E = []; const rows = {};
+    at.forEach((p) => { (rows[p.r] = rows[p.r] || []).push(p); });
+    Object.values(rows).forEach((ps) => {
+      const x1 = ps[0].x + 0.04; const x2 = ps[ps.length - 1].x + G.c - 0.04; const y = ps[0].y + G.c + G.gap / 2; const st = 0.1;
+      for (let x = x1, i = 0; x < x2 - 0.01; x += st, i++) E.push(LN(x, y + (i % 2 ? 0.04 : -0.04), Math.min(x + st, x2), y + (i % 2 ? -0.04 : 0.04), RED, 1.25));
+    });
+    return E;
+  };
+  const sheet = () => {
+    const c = 0.72; const gap = 0.16; const cols = 16; const rows = 7;
+    const x0 = (SW - cols * c) / 2; const y0 = 0.78;
+    const E = [R(0, 0, SW, SH, PAPER), ...grid(x0, y0, cols, rows, c, gap)];
+    // 页眉：中间「作文纸」，右边姓名、班级栏
+    E.push(TX(x0 - 0.12, 0.2, 3, 0.35, '作 文 纸', { size: 14, bold: true, color: GRID, font: '楷体', valign: 'middle', cs: 4, ls: 1 }));
+    E.push(TX(x0 + cols * c - 4.5, 0.24, 0.6, 0.3, '姓名', { size: 10, color: GRID, font: '楷体', valign: 'middle', ls: 1 }), HL(x0 + cols * c - 3.95, 0.5, 1.5, GRID, 0.6));
+    E.push(TX(x0 + cols * c - 2.25, 0.24, 0.6, 0.3, '班级', { size: 10, color: GRID, font: '楷体', valign: 'middle', ls: 1 }), HL(x0 + cols * c - 1.7, 0.5, 1.58, GRID, 0.6));
+    E.push(TX(x0 + cols * c - 2.3, SH - 0.42, 2.42, 0.25, `${cols}×${rows}=${cols * rows}`, { size: 9, color: GRID, font: '黑体', align: 'right', ls: 1 }));
+    return { c, gap, cols, rows, x0, y0, E };
+  };
+  const ring = (x, y, w, h, lw = 1.5) => O(x, y, w, h, null, { line: RED, lw });
+  THEMES.d20261119 = {
+    name: '作文稿纸', daily: '2026-11-19',
+    main: '3F6B4C', soft: 'EEF4EF', accent: RED, bg: PAPER, text: INK, muted: MUTED, line: GRID2, head: '楷体', body: '微软雅黑', marker: 'square', card: 'rule',
+    headFill: '3F6B4C', headText: PAPER, rows: [PAPER, 'F1F5EF'], tableText: INK,
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const G = sheet(); const E = G.E;
+      const t = writeCenter(G, 1, cellsOf(title), { maxRows: 3 }); E.push(...t.E, ...dots(G, t.at));
+      const r = 1 + t.rows + 1;
+      if (s.sub) { const c = cellsOf(s.sub); const w = Math.min(c.length, G.cols - 2); E.push(...write(G, r, G.cols - 1 - w, G.cols - 1, c, { color: MUTED, bold: false, maxRows: Math.max(1, Math.min(2, G.rows - r - 2)) }).E); }
+      if (s.foot) { const c = cellsOf(s.foot); const w = Math.min(c.length, G.cols - 4); E.push(...write(G, G.rows - 1, G.cols - 2 - w, G.cols - 2, c, { color: INK, bold: false, maxRows: 1 }).E); }
+      // 页边的红笔批语
+      const mx = G.x0 + G.cols * G.c + 0.22;
+      E.push(TX(mx, G.y0 + 0.1, 0.42, 1.5, '好\n题\n目', { size: 16, color: RED, font: '楷体', align: 'center', ls: 1.1 }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const G = sheet(); const E = G.E;
+      E.push(...write(G, 1, 2, G.cols, cellsOf(`第${CN_NUM[(no - 1) % 10]}章`)).E);
+      E.push(ring(G.x0 + 3 * G.c - 0.08, G.y0 + (G.c + G.gap) - 0.1, G.c + 0.16, G.c + 0.2));
+      const x = write(G, 3, 2, G.cols - 2, cellsOf(t), { maxRows: 3 }); E.push(...x.E, ...wavy(G, x.at));
+      const sr = 3 + x.rows + 1; if (s.sub && sr < G.rows) E.push(...write(G, sr, 4, G.cols - 2, cellsOf(s.sub), { color: MUTED, bold: false, maxRows: G.rows - sr }).E);
+      // 页边红笔：一个对勾
+      const mx = G.x0 + G.cols * G.c + 0.2; const my = G.y0 + 3 * (G.c + G.gap) + 0.15;
+      E.push(LN(mx, my + 0.22, mx + 0.13, my + 0.4, RED, 2), LN(mx + 0.13, my + 0.4, mx + 0.42, my, RED, 2));
+      return E;
+    },
+    end(th, s) {
+      const t = s.title || '谢谢！';
+      const G = sheet(); const E = G.E;
+      const x = writeCenter(G, 2, cellsOf(t), { maxRows: 2 }); E.push(...x.E, ...wavy(G, x.at));
+      if (s.sub) E.push(...writeCenter(G, 2 + x.rows + 1, cellsOf(s.sub), { color: MUTED, bold: false, maxRows: 1 }).E);
+      E.push(...write(G, G.rows - 1, G.cols - 7, G.cols - 4, cellsOf('全文完'), { color: INK, bold: false }).E);
+      // 老师的评语：一个大大的红「优」，底下两道线，旁边写阅和日期
+      const ox = G.x0 + (G.cols - 3.6) * G.c; const oy = G.y0 + (G.rows - 3) * (G.c + G.gap) - 0.25;
+      E.push(TX(ox, oy, 1.3, 1.2, '优', { size: 66, color: RED, font: '楷体', align: 'center', valign: 'middle', ls: 1 }));
+      E.push(HL(ox + 0.1, oy + 1.22, 1.1, RED, 2), HL(ox + 0.15, oy + 1.34, 1.0, RED, 1.25));
+      E.push(TX(ox + 1.35, oy + 0.35, 0.9, 0.4, '阅', { size: 20, color: RED, font: '楷体', ls: 1 }));
+      return E;
+    },
+    frame(th, s, deck, pg) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, PAPER), R(0.45, 0.35, SW - 0.9, SH - 0.7, null, { line: GRID, lw: 1.5 })];
+      // 标题写在一行格子里：字多就把格子缩小，再多就写两行
+      const cells = cellsOf(t); const avail = SW - 1.6; const gap = 0.12;
+      let c = Math.min(0.6, avail / Math.max(1, cells.length)); let rows = 1;
+      if (c < 0.42) { rows = 2; c = Math.max(0.3, Math.min(0.46, avail / Math.ceil(cells.length / 2))); }
+      const per = Math.floor(avail / c); const G = { x0: 0.8, y0: rows === 1 ? 0.72 : 0.6, c, gap, cols: per };
+      for (let r = 0; r < rows; r++) E.push(...rowCells(G.x0, G.y0 + r * (c + gap), r === rows - 1 ? Math.min(per, cells.length - per * r) : per, c));
+      const w = write(G, 0, 0, per, cells, { maxRows: rows }); E.push(...w.E, ...wavy(G, w.at));
+      // 底部一排小格子：左边写页码，像稿纸页脚
+      const fc = 0.3; const fy = SH - 0.9; const fn = Math.floor((SW - 1.6) / fc);
+      E.push(...rowCells(0.8, fy, fn, fc, 0.5));
+      const pcells = cellsOf(`第${pg}页`); const F = { x0: 0.8, y0: fy, c: fc, gap: 0 };
+      E.push(...write(F, 0, fn - pcells.length - 1, fn, pcells, { color: GRID, bold: false }).E);
+      E.push(...write(F, 0, 1, Math.min(fn - pcells.length - 3, 1 + 30), cellsOf(deck.title), { color: MUTED, bold: false, maxRows: 1 }).E);
+      return { E, body: { x: 0.8, y: 1.95, w: SW - 1.6, h: SH - 3.05 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.08, ib.y - 0.08, ib.w + 0.16, ib.h + 0.16, null, { line: GRID, lw: 0.75 })],
+    drawMarker: (th, x, y, size) => [R(x, y + size * 0.18, size * 0.6, size * 0.6, null, { line: GRID, lw: 1 }), O(x + size * 0.21, y + size * 0.39, size * 0.18, size * 0.18, RED)],
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
