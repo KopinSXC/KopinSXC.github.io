@@ -5301,6 +5301,121 @@ function composeSlide(s, deck) {
     drawMarker: (th, x, y, size) => [R(x, y + size * 0.18, size * 0.6, size * 0.6, null, { line: GRID, lw: 1 }), O(x + size * 0.21, y + size * 0.39, size * 0.18, size * 0.18, RED)],
   };
 }
+// 2026-11-20：心电图——淡粉红走纸上印着细红方格（每五小格一道粗线）；波形按真实心电图算：圆润的 P 波和 T 波、又尖又窄的 QRS 波群，每个导联形状不同（V1、V2 向下深、aVR 倒置），心跳间隔有快有慢，基线轻轻漂移；封面是经典的 12 导联排布（3 行 × 4 段），章节是对应导联的长条记录，结尾诊断写「窦性心律　节律正常」
+{
+  const PAPER = 'FDF5F3'; const MINOR = 'F5DCD7'; const MAJOR = 'E9B2A9'; const INK = '1F1A1A'; const RED = 'C23A2E'; const MUTED = '8A7470';
+  const SPEED = 2.5; // 走纸 25 mm/s：一小格 0.1 英寸当 1 毫米
+  const LEADS = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'];
+  // 每个导联的波幅（毫伏）：P、Q、R、S、T
+  const SHAPE = {
+    I: [0.08, -0.04, 0.7, -0.1, 0.2], II: [0.15, -0.06, 1.1, -0.2, 0.3], III: [0.07, -0.05, 0.5, -0.15, 0.1],
+    aVR: [-0.1, 0.05, -0.15, -0.75, -0.2], aVL: [0.04, -0.03, 0.45, -0.15, 0.1], aVF: [0.1, -0.05, 0.8, -0.15, 0.2],
+    V1: [0.06, 0, 0.2, -0.9, -0.08], V2: [0.07, 0, 0.4, -1.2, 0.35], V3: [0.07, 0, 0.8, -0.8, 0.4],
+    V4: [0.08, -0.05, 1.3, -0.4, 0.4], V5: [0.08, -0.08, 1.2, -0.2, 0.3], V6: [0.08, -0.08, 0.9, -0.1, 0.25],
+  };
+  const lead = (n) => LEADS[(n - 1) % LEADS.length];
+  // 封面 12 段各自的起伏：偶尔一个心跳跳得很高
+  const COVER_MULT = [[[0.8, 1.3], [1, 1.6], [0.7, 1.2], [1.4, 0.8]], [[1.6, 0.7], [0.8, 3.2], [1.2, 0.6], [0.9, 2.4]], [[0.9, 2.6], [1.3, 0.7], [0.6, 1.5], [3.6, 0.8]]];
+  const g = (t, c, w) => Math.exp(-(((t - c) / w) ** 2));
+  // 一个心跳里 t 秒时的电压（毫伏）
+  const beatV = (t, [p, q, r, s, tw]) => p * g(t, 0.08, 0.028) + q * g(t, 0.168, 0.009) + r * g(t, 0.19, 0.011) + s * g(t, 0.213, 0.01) + tw * g(t, 0.43, t < 0.43 ? 0.065 : 0.045);
+  // 方格纸：小格 0.1 英寸，每 5 小格一道粗线
+  const grid = (x, y, w, h) => {
+    const E = []; const u = 0.1;
+    for (let i = 0; i * u <= w + 1e-6; i++) if (i % 5) E.push(VL(x + i * u, y, h, MINOR, 0.5));
+    for (let i = 0; i * u <= h + 1e-6; i++) if (i % 5) E.push(HL(x, y + i * u, w, MINOR, 0.5));
+    for (let i = 0; i * u <= w + 1e-6; i += 5) E.push(VL(x + i * u, y, h, MAJOR, 0.75));
+    for (let i = 0; i * u <= h + 1e-6; i += 5) E.push(HL(x, y + i * u, w, MAJOR, 0.75));
+    return E;
+  };
+  const poly = (pts, color, lw) => { const E = []; for (let i = 1; i < pts.length; i++) { const [a, b] = pts[i - 1]; const [c, d] = pts[i]; if (Math.abs(d - b) < 0.002) { if (c - a > 1e-6) E.push(HL(a, b, c - a, color, lw)); } else E.push(LN(a, b, c, d, color, lw)); } return E; };
+  // 一段记录：gain 是 1 毫伏多少英寸；t0 是从心跳周期的哪里开始；seed 让每段的节律略有不同
+  const ecg = (x, y, w, name, o = {}) => {
+    const amp = SHAPE[name] || SHAPE.II; const gain = o.gain ?? 1; const seed = o.seed ?? 1; const lw = o.lw ?? 1.1;
+    const E = []; let x0 = x;
+    if (o.cal) { E.push(...poly([[x, y], [x + 0.1, y], [x + 0.1, y - gain], [x + 0.3, y - gain], [x + 0.3, y], [x + 0.4, y]], INK, lw)); x0 = x + 0.4; }
+    const dur = (x + w - x0) / SPEED;
+    // 心跳起点：平均每分钟 72 次，间隔有轻微快慢
+    const starts = []; let bt = -(o.t0 ?? 0.3); let k = 0;
+    while (bt < dur) { starts.push(bt); bt += 0.83 * (1 + 0.05 * Math.sin(k * 1.7 + seed * 2.3) + 0.02 * Math.sin(k * 4.1 + seed)); k++; }
+    // mult：每个心跳的 QRS 放大几倍，做出高低起伏的艺术效果
+    const M = o.mult || [1]; const amps = starts.map((_, i) => { const m = M[i % M.length]; return [amp[0], amp[1] * m, amp[2] * m, amp[3] * m, amp[4] * (0.7 + 0.3 * m)]; });
+    const v = (t) => { let s = 0.03 * Math.sin(t * 2.1 + seed) + 0.015 * Math.sin(t * 5.3 + seed * 3); starts.forEach((b, i) => { const d = t - b; if (d > -0.05 && d < 0.75) s += beatV(d, amps[i]); }); return s; };
+    const step = (t) => { for (const b of starts) { const d = t - b; if (d > 0.14 && d < 0.24) return 0.004; if ((d > 0.02 && d < 0.14) || (d > 0.28 && d < 0.6)) return 0.02; } return 0.05; };
+    const pts = []; for (let t = 0; t < dur; t += step(t)) pts.push([x0 + t * SPEED, y - v(t) * gain, t]);
+    pts.push([x + w, y - v(dur) * gain, dur]);
+    // 跳得最高的那一下用红笔描出来（o.hi 为 true 时）
+    let hi = -1; if (o.hi) { let best = 0; starts.forEach((b, i) => { if (b > 0.1 && b < dur - 0.35 && amps[i][2] > best) { best = amps[i][2]; hi = i; } }); }
+    const red = (t) => hi >= 0 && t > starts[hi] + 0.13 && t < starts[hi] + 0.26;
+    const runs = []; let cur = null;
+    pts.forEach((pt, i) => { const c = i && red(pt[2]) && red(pts[i - 1][2]) ? RED : INK; if (!cur || cur.c !== c) { cur = { c, p: cur ? [cur.p[cur.p.length - 1]] : [] }; runs.push(cur); } cur.p.push(pt); });
+    return [...E, ...runs.flatMap((r) => poly(r.p, r.c, r.c === RED ? lw + 0.6 : lw))];
+  };
+  const lab = (x, y, w, t, o = {}) => TX(x, y, w, 0.26, t, { size: 10, color: MUTED, font: '微软雅黑', ls: 1, ...o });
+  const leadTag = (x, y, t) => TX(x, y, 0.6, 0.26, t, { size: 10, bold: true, color: INK, font: '微软雅黑', ls: 1 });
+  THEMES.d20261120 = {
+    name: '心电图', daily: '2026-11-20',
+    main: RED, soft: 'FAE9E5', accent: RED, bg: PAPER, text: INK, muted: MUTED, line: MAJOR, head: '黑体', body: '微软雅黑', marker: 'dash', card: 'rule',
+    headFill: INK, headText: PAPER, rows: [PAPER, 'FAE9E5'], tableText: INK,
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, PAPER), ...grid(0.65, 0.5, 12.0, 6.5)];
+      E.push(R(0.65, 0.5, 12.0, 0.5, PAPER), HL(0.65, 1.0, 12.0, MAJOR, 1));
+      E.push(TX(0.8, 0.58, 2.2, 0.34, '心电图报告', { size: 13, bold: true, color: RED, font: th.head, cs: 2, ls: 1 }));
+      E.push(lab(3.0, 0.62, 6.5, '心率 72 次/分　　PR 160 ms　　QRS 88 ms　　QT 380 ms'), lab(SW - 4.3, 0.62, 3.5, '25 mm/s　5 mm/mV', { align: 'right' }));
+      E.push(TX(0.95, 1.15, 10.5, 1.75, title, { size: fitPt(title, 10.5, 1.75, 46, 22, 1.12), bold: true, color: INK, font: th.head, valign: 'bottom', ls: 1.12 }));
+      if (s.sub) E.push(TX(0.95, 2.95, 10.5, 0.45, s.sub, { size: fitPt(s.sub, 10.5, 0.45, 18, 11, 1.2), color: MUTED, font: th.body }));
+      // 经典 12 导联排布：3 行，每行 4 段，每段 3 英寸
+      const rows = [['I', 'aVR', 'V1', 'V4'], ['II', 'aVL', 'V2', 'V5'], ['III', 'aVF', 'V3', 'V6']];
+      rows.forEach((row, ri) => {
+        const y = 4.25 + ri * 0.98;
+        row.forEach((nm, ci) => {
+          const sx = 0.65 + ci * 3.0;
+          E.push(...ecg(sx, y, 3.0, nm, { gain: 0.5, cal: ci === 0, seed: ri * 4 + ci + 1, t0: ci ? -0.18 : 0.1, mult: COVER_MULT[ri][ci], hi: ri === 2 && ci === 3 }));
+          if (ci) E.push(VL(sx, y - 0.18, 0.18, INK, 1));
+          E.push(leadTag(sx + (ci ? 0.1 : 0.45), y - 0.42, nm));
+        });
+      });
+      if (s.foot) E.push(TX(0.85, 6.72, 8, 0.26, s.foot, { size: 11, color: INK, font: th.body, ls: 1 }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || ''; const nm = lead(no);
+      const E = [R(0, 0, SW, SH, PAPER), ...grid(0.65, 0.5, 12.0, 6.5)];
+      E.push(TX(0.95, 0.85, 4, 0.36, `第 ${no} 导联　${nm}`, { size: 14, bold: true, color: RED, font: th.body, cs: 2, ls: 1 }));
+      E.push(TX(0.85, 1.35, 3.3, 1.9, pad2(no), { size: 96, bold: true, color: INK, font: th.head, valign: 'middle', ls: 1 }));
+      E.push(VL(4.35, 1.5, 1.6, INK, 1));
+      E.push(TX(4.7, 1.3, SW - 5.7, 2.0, t, { size: fitPt(t, SW - 5.7, 2.0, 40, 20, 1.15), bold: true, color: INK, font: th.head, valign: 'middle', ls: 1.15 }));
+      if (s.sub) E.push(TX(4.7, 3.35, SW - 5.7, 0.65, s.sub, { size: fitPt(s.sub, SW - 5.7, 0.65, 18, 11, 1.2), color: MUTED, font: th.body }));
+      E.push(...ecg(0.65, 6.15, 12.0, nm, { gain: 0.85 / Math.max(SHAPE[nm][2], -SHAPE[nm][3], 0.5), cal: true, seed: no, lw: 1.3, hi: true, mult: [[0.6, 1.5, 0.5, 1.0, 2.9, 0.7], [1.0, 0.5, 2.8, 0.7, 1.4, 0.6], [0.6, 1.3, 0.8, 3.0, 0.5, 1.1]][(no - 1) % 3] }));
+      return E;
+    },
+    end(th, s) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, PAPER), ...grid(0.65, 0.5, 12.0, 6.5)];
+      E.push(TX(0.95, 1.1, 8.5, 1.8, t, { size: fitPt(t, 8.5, 1.8, 60, 26, 1.1), bold: true, color: INK, font: th.head, valign: 'bottom', ls: 1.1 }));
+      if (s.sub) E.push(TX(0.95, 3.0, 8.5, 0.6, s.sub, { size: fitPt(s.sub, 8.5, 0.6, 20, 12, 1.2), color: MUTED, font: th.body }));
+      E.push(R(SW - 4.4, 1.75, 3.4, 1.05, PAPER, { line: RED, lw: 1.25 }));
+      E.push(lab(SW - 4.25, 1.85, 3.1, '诊断意见', { color: RED, size: 9 }), TX(SW - 4.25, 2.15, 3.1, 0.5, '窦性心律　节律正常', { size: 16, bold: true, color: RED, font: th.head, ls: 1 }));
+      E.push(...ecg(0.65, 6.0, 12.0, 'II', { gain: 0.9, cal: true, seed: 7, lw: 1.3, hi: true, mult: [0.5, 0.8, 1.4, 2.6, 1.2, 0.8, 0.6, 0.5] }));
+      return E;
+    },
+    frame(th, s, deck, pg) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, PAPER), ...grid(0.65, 0.3, 12.0, 1.1)];
+      const tw = SW - 5.0;
+      E.push(R(0.65, 0.5, tw + 0.3, 0.75, PAPER));
+      E.push(TX(0.8, 0.5, tw, 0.75, t, { size: fitPt(t, tw, 0.75, 28, 16, 1.1), bold: true, color: INK, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(...ecg(SW - 3.85, 1.05, 3.2, 'II', { gain: 0.5, seed: pg, t0: 0.1 + (pg % 4) * 0.15, mult: [[0.7, 1.4], [1.4, 0.7]][pg % 2] }));
+      E.push(HL(0.65, 1.4, 12.0, MAJOR, 1.25));
+      E.push(HL(0.65, SH - 0.6, 12.0, MAJOR, 0.75), TX(0.65, SH - 0.5, 8, 0.3, deck.title, { size: 10, color: MUTED, font: th.body, ls: 1 }));
+      E.push(TX(SW - 3.65, SH - 0.5, 3.0, 0.3, `25 mm/s　　${pad2(pg)}`, { size: 10, color: MUTED, font: th.body, align: 'right', ls: 1 }));
+      return { E, body: { x: 0.75, y: 1.75, w: SW - 1.5, h: SH - 2.5 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.08, ib.y - 0.08, ib.w + 0.16, ib.h + 0.16, null, { line: MAJOR, lw: 1 })],
+    drawMarker: (th, x, y, size) => { const b = y + size * 0.8; return [LN(x, b, x + size * 0.25, y + size * 0.05, RED, 1.5), LN(x + size * 0.25, y + size * 0.05, x + size * 0.45, b + size * 0.15, RED, 1.5), LN(x + size * 0.45, b + size * 0.15, x + size * 0.6, b, RED, 1.5)]; },
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
