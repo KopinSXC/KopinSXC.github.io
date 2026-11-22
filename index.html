@@ -5416,6 +5416,78 @@ function composeSlide(s, deck) {
     drawMarker: (th, x, y, size) => { const b = y + size * 0.8; return [LN(x, b, x + size * 0.25, y + size * 0.05, RED, 1.5), LN(x + size * 0.25, y + size * 0.05, x + size * 0.45, b + size * 0.15, RED, 1.5), LN(x + size * 0.45, b + size * 0.15, x + size * 0.6, b, RED, 1.5)]; },
   };
 }
+// 2026-11-21：黑胶唱片——浅灰底上一只白色唱片封套，黑胶从封套里滑出一半：细细的同心纹路、蓝色圆标、中间一个小孔；章节是「A 面　第 1 首」，大唱片露出半张，圆标上印章节号；内容页右上角一张小唱片，底部是一条播放进度线，唱针随页数往前走；结尾封套翻到背面，圆标写「完」
+{
+  const BG = 'E6E5E0'; const SLEEVE = 'FAFAF7'; const VINYL = '151515'; const GROOVE = '343434'; const SHEEN = '4A4A4A'; const LABEL = '2F5E9E'; const INK = '1C1C1C'; const MUTED = '7C7A74'; const LINE = 'CFCDC6';
+  // 一张唱片：中心 (cx, cy)，直径 d；label 是圆标颜色，t 是圆标上的字
+  const record = (cx, cy, d, t = '', o = {}) => {
+    const r = d / 2; const lr = r * (o.labelRatio || 0.34); const E = [O(cx - r, cy - r, d, d, VINYL)];
+    for (let rr = lr + 0.12; rr < r - 0.08; rr += Math.max(0.07, (r - lr) / 22)) E.push(O(cx - rr, cy - rr, rr * 2, rr * 2, null, { line: GROOVE, lw: 0.5 }));
+    // 两道稍亮的纹路，像灯光照在唱片上
+    [0.62, 0.8].forEach((k) => { const rr = lr + (r - lr) * k; E.push(O(cx - rr, cy - rr, rr * 2, rr * 2, null, { line: SHEEN, lw: 1 })); });
+    E.push(O(cx - r + 0.04, cy - r + 0.04, d - 0.08, d - 0.08, null, { line: '2A2A2A', lw: 1.5 }));
+    E.push(O(cx - lr, cy - lr, lr * 2, lr * 2, o.label || LABEL), O(cx - lr + 0.06, cy - lr + 0.06, lr * 2 - 0.12, lr * 2 - 0.12, null, { line: 'FFFFFF', lw: 0.5 }));
+    if (t) E.push(TX(cx - lr, cy - lr * 0.8, lr * 2, lr * 0.8, t, { size: o.size || Math.max(9, lr * 30), bold: true, color: 'FFFFFF', font: '黑体', align: 'center', valign: 'middle', ls: 1 }));
+    const hole = Math.max(0.06, d * 0.018); E.push(O(cx - hole / 2, cy - hole / 2 + (t ? lr * 0.25 : 0), hole, hole, o.bg || BG));
+    return E;
+  };
+  const side = (no) => (no <= 6 ? 'A' : 'B');
+  THEMES.d20261121 = {
+    name: '黑胶唱片', daily: '2026-11-21',
+    main: LABEL, soft: 'EFEEEA', accent: LABEL, bg: SLEEVE, text: INK, muted: MUTED, line: LINE, head: '黑体', body: '微软雅黑', marker: 'dot', card: 'rule',
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, BG)];
+      // 唱片先画，封套压在上面，看起来像从封套里滑出来
+      E.push(...record(8.55, 3.75, 6.0, '', { bg: BG }));
+      // 唱臂：右上角一个转轴，细臂斜着搭到唱片外圈
+      E.push(O(11.85, 0.55, 0.7, 0.7, null, { line: INK, lw: 1 }), O(12.05, 0.75, 0.3, 0.3, INK), LN(12.2, 0.9, 12.3, 3.3, INK, 2), LN(12.3, 3.3, 11.25, 4.55, INK, 2), R(11.0, 4.45, 0.38, 0.22, INK));
+      E.push(R(0.95, 0.85, 5.8, 5.8, 'D9D8D2'), R(0.9, 0.75, 5.8, 5.8, SLEEVE));
+      E.push(TX(1.35, 1.15, 4.9, 0.3, '密纹唱片　33 转', { size: 10, color: MUTED, font: th.body, cs: 2, ls: 1 }), HL(1.35, 1.55, 4.9, INK, 0.75));
+      E.push(TX(1.35, 1.85, 4.9, 2.9, title, { size: fitPt(title, 4.9, 2.9, 36, 20, 1.15), bold: true, color: INK, font: th.head, valign: 'top', ls: 1.15 }));
+      if (s.sub) E.push(TX(1.35, 4.85, 4.9, 0.7, s.sub, { size: fitPt(s.sub, 4.9, 0.7, 16, 10, 1.25), color: MUTED, font: th.body }));
+      E.push(HL(1.35, 5.75, 4.9, LINE, 0.75), O(1.35, 5.95, 0.16, 0.16, LABEL));
+      E.push(TX(1.65, 5.88, 4.6, 0.3, s.foot || 'A 面', { size: 11, color: INK, font: th.body, ls: 1 }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, BG)];
+      E.push(...record(1.45, 3.75, 7.2, pad2(no), { labelRatio: 0.36, size: 54, bg: BG }));
+      const x = 5.6; const w = SW - x - 0.9;
+      E.push(TX(x, 1.7, w, 0.36, `${side(no)} 面　第 ${no} 首`, { size: 14, bold: true, color: LABEL, font: th.body, cs: 2, ls: 1 }));
+      E.push(TX(x, 2.2, w, 2.2, t, { size: fitPt(t, w, 2.2, 42, 20, 1.15), bold: true, color: INK, font: th.head, valign: 'top', ls: 1.15 }));
+      E.push(HL(x, 4.6, w, INK, 0.75));
+      if (s.sub) E.push(TX(x, 4.8, w, 0.7, s.sub, { size: fitPt(s.sub, w, 0.7, 18, 11, 1.2), color: MUTED, font: th.body }));
+      return E;
+    },
+    end(th, s) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, BG)];
+      E.push(...record(8.9, 3.75, 5.6, '完', { size: 30, bg: BG }));
+      E.push(R(0.95, 1.6, 5.4, 4.3, 'D9D8D2'), R(0.9, 1.5, 5.4, 4.3, SLEEVE));
+      E.push(TX(1.3, 1.85, 4.6, 0.3, '全部曲目播放完毕', { size: 10, color: MUTED, font: th.body, cs: 2, ls: 1 }), HL(1.3, 2.25, 4.6, INK, 0.75));
+      E.push(TX(1.3, 2.5, 4.6, 1.7, t, { size: fitPt(t, 4.6, 1.7, 52, 24, 1.1), bold: true, color: INK, font: th.head, valign: 'middle', ls: 1.1 }));
+      if (s.sub) E.push(TX(1.3, 4.3, 4.6, 0.7, s.sub, { size: fitPt(s.sub, 4.6, 0.7, 16, 10, 1.2), color: MUTED, font: th.body }));
+      return E;
+    },
+    frame(th, s, deck, pg) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, SLEEVE)];
+      E.push(...record(SW - 1.25, 0.95, 1.2, '', { bg: SLEEVE, labelRatio: 0.36 }));
+      E.push(TX(0.75, 0.45, SW - 3.0, 0.85, t, { size: fitPt(t, SW - 3.0, 0.85, 28, 16, 1.1), bold: true, color: INK, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(HL(0.75, 1.45, SW - 2.4, INK, 0.75));
+      // 播放进度：一条细线，唱针（小圆点）随页数往前走
+      const n = Math.max(2, (deck.slides || []).length); const k = Math.min(1, (pg - 1) / (n - 1));
+      const px = 0.75; const pw = SW - 3.9; const py = SH - 0.42;
+      E.push(HL(px, py, pw, LINE, 1.5), HL(px, py, Math.max(0.01, pw * k), LABEL, 1.5), O(px + pw * k - 0.06, py - 0.06, 0.12, 0.12, LABEL));
+      E.push(TX(SW - 3.0, SH - 0.57, 2.25, 0.3, `第 ${pg} 首　/　共 ${n} 首`, { size: 10, color: MUTED, font: th.body, align: 'right', ls: 1 }));
+      return { E, body: { x: 0.75, y: 1.8, w: SW - 1.5, h: SH - 2.6 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x + 0.08, ib.y + 0.08, ib.w, ib.h, 'DEDDD7')],
+    drawMarker: (th, x, y, size) => { const d = size * 0.62; const cy = y + size * 0.5; return [O(x, cy - d / 2, d, d, VINYL), O(x + d * 0.32, cy - d * 0.18, d * 0.36, d * 0.36, LABEL)]; },
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
