@@ -5488,6 +5488,82 @@ function composeSlide(s, deck) {
     drawMarker: (th, x, y, size) => { const d = size * 0.62; const cy = y + size * 0.5; return [O(x, cy - d / 2, d, d, VINYL), O(x + d * 0.32, cy - d * 0.18, d * 0.36, d * 0.36, LABEL)]; },
   };
 }
+// 2026-11-22：撕页日历——像挂在墙上的老式撕页日历：顶上一条深红装订条和两个挂孔，下面一排撕口小孔；白纸上一个超大的红色日期数字，配星期和「宜　忌」；章节页的大数字就是章节号，「宜」后面写章节名；内容页左上角一张小日历当页码；结尾写一个大大的「宜」，下面「诸事顺利」
+{
+  const BG = 'ECEAE6'; const PAPER = 'FFFFFF'; const RED = 'C23B32'; const DARK = '8E2A24'; const INK = '232323'; const MUTED = '8A8580'; const LINE = 'DEDAD3';
+  const WEEK = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+  const MONTH = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+  // 一本撕页日历：纸张底下露出几层纸边，顶上是装订条、挂孔和撕口
+  const pad = (x, y, w, h) => {
+    const E = [];
+    [3, 2, 1].forEach((i) => E.push(R(x + i * 0.035, y + 0.5 + i * 0.05, w, h - 0.5, i === 3 ? 'D8D5CF' : 'F3F2EF', { line: LINE, lw: 0.5 })));
+    E.push(R(x, y + 0.5, w, h - 0.5, PAPER, { line: LINE, lw: 0.5 }), R(x, y, w, 0.55, DARK));
+    [0.3, 0.7].forEach((k) => E.push(O(x + w * k - 0.09, y + 0.18, 0.18, 0.18, BG)));
+    for (let xx = x + 0.16; xx < x + w - 0.1; xx += 0.16) E.push(O(xx - 0.025, y + 0.66, 0.05, 0.05, LINE));
+    return E;
+  };
+  // 宜忌：红底白字的小方块 + 内容
+  const yiji = (x, y, w, k, t, color = RED) => [R(x, y, 0.34, 0.34, color), TX(x, y, 0.34, 0.34, k, { size: 13, bold: true, color: 'FFFFFF', font: '宋体', align: 'center', valign: 'middle', ls: 1 }), TX(x + 0.46, y - 0.02, w - 0.46, 0.38, t, { size: fitPt(t, w - 0.46, 0.38, 14, 9, 1.1), color: INK, font: '宋体', valign: 'middle', ls: 1.1 })];
+  THEMES.d20261122 = {
+    name: '撕页日历', daily: '2026-11-22',
+    main: RED, soft: 'F7EFEC', accent: RED, bg: PAPER, text: INK, muted: MUTED, line: LINE, head: '宋体', body: '微软雅黑', marker: 'square', card: 'rule',
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const d = new Date(); const E = [R(0, 0, SW, SH, BG)];
+      const x = 8.3; const y = 0.75; const w = 4.1; const h = 5.9; E.push(...pad(x, y, w, h));
+      E.push(TX(x, y + 0.85, w, 0.4, `${d.getFullYear()} 年　${MONTH[d.getMonth()]}`, { size: 14, color: INK, font: th.head, align: 'center', cs: 2, ls: 1 }));
+      E.push(TX(x, y + 1.3, w, 2.4, String(d.getDate()), { size: 150, bold: true, color: RED, font: 'Arial', align: 'center', valign: 'middle', ls: 1 }));
+      E.push(TX(x, y + 3.75, w, 0.4, WEEK[d.getDay()], { size: 16, bold: true, color: INK, font: th.head, align: 'center', cs: 4, ls: 1 }));
+      E.push(HL(x + 0.4, y + 4.35, w - 0.8, LINE, 0.75));
+      E.push(...yiji(x + 0.45, y + 4.6, w - 0.9, '宜', '汇报　开会　定方案'), ...yiji(x + 0.45, y + 5.1, w - 0.9, '忌', '拖延　临时抱佛脚', INK));
+      E.push(TX(0.95, 1.4, 6.6, 2.9, title, { size: fitPt(title, 6.6, 2.9, 48, 24, 1.15), bold: true, color: INK, font: th.head, valign: 'bottom', ls: 1.15 }));
+      E.push(R(0.95, 4.55, 0.6, 0.08, RED));
+      if (s.sub) E.push(TX(0.95, 4.85, 6.6, 0.7, s.sub, { size: fitPt(s.sub, 6.6, 0.7, 18, 11, 1.2), color: MUTED, font: th.body }));
+      if (s.foot) E.push(TX(0.95, 6.15, 6.6, 0.4, s.foot, { size: 13, color: INK, font: th.body, ls: 1 }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, BG)];
+      const x = 1.0; const y = 0.85; const w = 4.3; const h = 5.8; E.push(...pad(x, y, w, h));
+      E.push(TX(x, y + 0.85, w, 0.4, `第 ${no} 章`, { size: 15, color: INK, font: th.head, align: 'center', cs: 4, ls: 1 }));
+      E.push(TX(x, y + 1.3, w, 2.6, pad2(no), { size: 160, bold: true, color: RED, font: 'Arial', align: 'center', valign: 'middle', ls: 1 }));
+      E.push(HL(x + 0.4, y + 4.25, w - 0.8, LINE, 0.75));
+      E.push(...yiji(x + 0.45, y + 4.55, w - 0.9, '宜', '专心听讲'), ...yiji(x + 0.45, y + 5.05, w - 0.9, '忌', '看手机', INK));
+      const tx = 6.3; const tw = SW - tx - 0.9;
+      E.push(TX(tx, 2.0, tw, 2.2, t, { size: fitPt(t, tw, 2.2, 44, 22, 1.15), bold: true, color: INK, font: th.head, valign: 'bottom', ls: 1.15 }));
+      E.push(R(tx, 4.45, 0.6, 0.08, RED));
+      if (s.sub) E.push(TX(tx, 4.75, tw, 0.8, s.sub, { size: fitPt(s.sub, tw, 0.8, 18, 11, 1.2), color: MUTED, font: th.body }));
+      return E;
+    },
+    end(th, s) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, BG)];
+      const x = 8.3; const y = 0.75; const w = 4.1; const h = 5.9; E.push(...pad(x, y, w, h));
+      E.push(TX(x, y + 0.85, w, 0.4, '今日', { size: 15, color: INK, font: th.head, align: 'center', cs: 6, ls: 1 }));
+      E.push(TX(x, y + 1.35, w, 2.5, '宜', { size: 150, bold: true, color: RED, font: th.head, align: 'center', valign: 'middle', ls: 1 }));
+      E.push(TX(x, y + 4.0, w, 0.45, '诸事顺利', { size: 20, bold: true, color: INK, font: th.head, align: 'center', cs: 6, ls: 1 }));
+      E.push(HL(x + 0.4, y + 4.7, w - 0.8, LINE, 0.75), TX(x, y + 4.9, w, 0.35, '明天见', { size: 12, color: MUTED, font: th.body, align: 'center', cs: 4, ls: 1 }));
+      E.push(TX(0.95, 1.6, 6.6, 2.4, t, { size: fitPt(t, 6.6, 2.4, 60, 26, 1.1), bold: true, color: INK, font: th.head, valign: 'bottom', ls: 1.1 }));
+      E.push(R(0.95, 4.25, 0.6, 0.08, RED));
+      if (s.sub) E.push(TX(0.95, 4.55, 6.6, 0.7, s.sub, { size: fitPt(s.sub, 6.6, 0.7, 18, 11, 1.2), color: MUTED, font: th.body }));
+      return E;
+    },
+    frame(th, s, deck, pg) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, PAPER)];
+      // 左上角的小日历：深红顶条 + 页码
+      E.push(R(0.7, 0.42, 0.95, 0.24, DARK), R(0.7, 0.66, 0.95, 0.72, PAPER, { line: LINE, lw: 0.75 }));
+      E.push(TX(0.7, 0.42, 0.95, 0.24, '页', { size: 9, bold: true, color: 'FFFFFF', font: th.body, align: 'center', valign: 'middle', ls: 1 }));
+      E.push(TX(0.7, 0.66, 0.95, 0.72, String(pg), { size: 30, bold: true, color: RED, font: 'Arial', align: 'center', valign: 'middle', ls: 1 }));
+      E.push(TX(1.95, 0.42, SW - 2.75, 0.96, t, { size: fitPt(t, SW - 2.75, 0.96, 28, 16, 1.1), bold: true, color: INK, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(HL(0.7, 1.62, SW - 1.4, INK, 0.75));
+      E.push(HL(0.7, SH - 0.62, SW - 1.4, LINE, 0.75), TX(0.7, SH - 0.52, 8, 0.3, deck.title, { size: 10, color: MUTED, font: th.body, ls: 1 }));
+      return { E, body: { x: 0.7, y: 1.95, w: SW - 1.4, h: SH - 2.75 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.08, ib.y - 0.08, ib.w + 0.16, ib.h + 0.16, null, { line: LINE, lw: 1 })],
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
