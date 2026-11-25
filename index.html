@@ -5564,6 +5564,80 @@ function composeSlide(s, deck) {
     imageFrame: (th, ib) => [R(ib.x - 0.08, ib.y - 0.08, ib.w + 0.16, ib.h + 0.16, null, { line: LINE, lw: 1 })],
   };
 }
+// 2026-11-23：牛皮纸档案袋——牛皮纸袋面，上方封口盖，两颗纽扣绕着细绳；中间贴一张白色档案标签，题名、责任者、编号、日期、密级一格一格填好，角上盖红色「机密」章；章节页是档案夹的卷标「第 01 卷」；内容页左边是装订线和三个装订孔，页脚写「第 3 页　共 12 页」；结尾盖一个大红章「已归档」
+{
+  const KRAFT = 'D3BA8E'; const KRAFT_D = 'C2A675'; const PAPER = 'FBF8F1'; const INK = '2A2620'; const RED = 'B5302A'; const MUTED = '7D705C'; const LINE = 'D9CFBD';
+  // 纽扣和绕绳：上下两颗扣子，细绳绕成 8 字，再垂下一段
+  const buttons = (cx, y1, y2) => { const r = 0.24; return [
+    LN(cx - 0.17, y1 + 0.05, cx + 0.17, y2 - 0.05, INK, 1), LN(cx + 0.17, y1 + 0.05, cx - 0.17, y2 - 0.05, INK, 1), LN(cx, y2 + 0.1, cx + 0.5, y2 + 1.1, INK, 1), LN(cx + 0.5, y2 + 1.1, cx + 0.35, y2 + 1.6, INK, 1),
+    O(cx - r, y1 - r, r * 2, r * 2, KRAFT_D, { line: INK, lw: 1 }), O(cx - 0.05, y1 - 0.05, 0.1, 0.1, INK),
+    O(cx - r, y2 - r, r * 2, r * 2, KRAFT_D, { line: INK, lw: 1 }), O(cx - 0.05, y2 - 0.05, 0.1, 0.1, INK)]; };
+  const envelope = () => [R(0, 0, SW, SH, KRAFT), R(0, 0, SW, 1.45, KRAFT_D), HL(0, 1.45, SW, 'A88C5C', 1), ...buttons(1.45, 1.1, 2.1)];
+  const stamp = (x, y, w, h, t, size) => [R(x, y, w, h, null, { line: RED, lw: 2.5 }), R(x + 0.07, y + 0.07, w - 0.14, h - 0.14, null, { line: RED, lw: 0.75 }), TX(x, y, w, h, t, { size, bold: true, color: RED, font: '宋体', align: 'center', valign: 'middle', cs: 4, ls: 1 })];
+  // 档案标签：左列是栏目名，右列是内容
+  const label = (x, y, w, rows) => {
+    const lw = 1.25; let yy = y; const E = [];
+    const h = rows.reduce((a, r) => a + r[2], 0) + 0.65;
+    E.push(R(x + 0.06, y + 0.08, w, h, 'B89F72'), R(x, y, w, h, PAPER, { line: INK, lw: 1 }));
+    E.push(TX(x, y + 0.08, w, 0.5, '档　案', { size: 18, bold: true, color: INK, font: '宋体', align: 'center', valign: 'middle', cs: 8, ls: 1 }));
+    yy = y + 0.65; E.push(HL(x, yy, w, INK, 1));
+    rows.forEach(([k, v, rh, o = {}], i) => {
+      E.push(TX(x, yy, lw, rh, k, { size: 12, color: MUTED, font: '宋体', align: 'center', valign: 'middle', cs: 2, ls: 1 }), VL(x + lw, yy, rh, INK, 0.75));
+      E.push(TX(x + lw + 0.2, yy, w - lw - 0.35, rh, v, { size: fitPt(v, w - lw - 0.35, rh, o.max || 16, o.min || 9, 1.15), bold: !!o.bold, color: INK, font: o.font || '宋体', valign: 'middle', ls: 1.15 }));
+      yy += rh; if (i < rows.length - 1) E.push(HL(x, yy, w, INK, 0.75));
+    });
+    return E;
+  };
+  const today = () => { const d = new Date(); return `${d.getFullYear()} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日`; };
+  THEMES.d20261123 = {
+    name: '牛皮纸档案袋', daily: '2026-11-23',
+    main: '8C6B3F', soft: 'F3ECDD', accent: RED, bg: PAPER, text: INK, muted: MUTED, line: LINE, head: '宋体', body: '微软雅黑', marker: 'square', card: 'rule',
+    headFill: INK, headText: PAPER, rows: [PAPER, 'F3ECDD'], tableText: INK,
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = envelope();
+      E.push(...label(3.0, 1.95, 9.3, [['题　名', title, 2.1, { max: 44, min: 18, bold: true, font: '黑体' }], ['说　明', s.sub || '—', 0.75], ['责任者', s.foot || '—', 0.6], ['日　期', today(), 0.6]]));
+      E.push(...stamp(10.0, 6.05, 1.9, 0.85, '机密', 26));
+      E.push(TX(SW - 3.7, 0.5, 3.0, 0.4, '编号　2026-001', { size: 12, color: INK, font: '宋体', align: 'right', cs: 1, ls: 1 }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, KRAFT)];
+      // 档案夹：上面一个卷标页签，下面一张白纸
+      E.push(R(0.9, 0.75, 3.0, 0.6, KRAFT_D, { line: 'A88C5C', lw: 0.75 }), TX(0.9, 0.75, 3.0, 0.6, `第 ${pad2(no)} 卷`, { size: 16, bold: true, color: INK, font: '宋体', align: 'center', valign: 'middle', cs: 4, ls: 1 }));
+      E.push(R(0.96, 1.43, SW - 1.8, 5.3, 'B89F72'), R(0.9, 1.35, SW - 1.8, 5.3, PAPER, { line: INK, lw: 0.75 }));
+      E.push(TX(1.3, 2.0, 3.2, 2.6, pad2(no), { size: 130, bold: true, color: INK, font: '宋体', align: 'center', valign: 'middle', ls: 1 }), VL(4.9, 2.2, 2.6, INK, 0.75));
+      E.push(TX(5.4, 1.9, SW - 6.8, 2.0, t, { size: fitPt(t, SW - 6.8, 2.0, 40, 20, 1.15), bold: true, color: INK, font: '黑体', valign: 'bottom', ls: 1.15 }));
+      E.push(HL(5.4, 4.15, SW - 6.8, LINE, 0.75));
+      if (s.sub) E.push(TX(5.4, 4.35, SW - 6.8, 0.75, s.sub, { size: fitPt(s.sub, SW - 6.8, 0.75, 18, 11, 1.2), color: MUTED, font: th.body }));
+      return E;
+    },
+    end(th, s) {
+      const t = s.title || '谢谢！';
+      const E = envelope();
+      E.push(...label(3.2, 2.3, 8.9, [['题　名', t, 1.7, { max: 44, min: 20, bold: true, font: '黑体' }], ['说　明', s.sub || '本卷到此结束', 0.75], ['日　期', today(), 0.6]]));
+      E.push(...stamp(8.75, 4.85, 3.0, 1.2, '已归档', 34));
+      return E;
+    },
+    frame(th, s, deck, pg) {
+      const t = s.title || '';
+      const n = (deck.slides || []).length;
+      const E = [R(0, 0, SW, SH, PAPER)];
+      // 左边装订线：一道虚线、三个装订孔，旁边竖写「装订线」
+      for (let y = 0.3; y < SH - 0.3; y += 0.2) E.push(VL(0.75, y, 0.1, MUTED, 0.75));
+      [SH * 0.25, SH * 0.5, SH * 0.75].forEach((y) => E.push(O(0.32, y - 0.09, 0.18, 0.18, 'E6DDCB')));
+      E.push(TX(0.82, SH / 2 - 0.75, 0.25, 1.5, '装\n订\n线', { size: 8, color: MUTED, font: '宋体', align: 'center', valign: 'middle', ls: 1.4 }));
+      const x = 1.35; const w = SW - x - 0.7;
+      E.push(TX(x, 0.45, w - 2.4, 0.85, t, { size: fitPt(t, w - 2.4, 0.85, 28, 16, 1.1), bold: true, color: INK, font: '黑体', valign: 'middle', ls: 1.1 }));
+      E.push(TX(SW - 3.0, 0.55, 2.3, 0.3, `编号　A-${pad2(pg)}`, { size: 11, color: MUTED, font: '宋体', align: 'right', ls: 1 }), TX(SW - 3.0, 0.88, 2.3, 0.3, '密级　内部', { size: 11, color: RED, font: '宋体', align: 'right', ls: 1 }));
+      E.push(HL(x, 1.42, w, INK, 1.25), HL(x, 1.5, w, INK, 0.5));
+      E.push(HL(x, SH - 0.62, w, LINE, 0.75), TX(x, SH - 0.52, w, 0.3, `第 ${pg} 页　共 ${n} 页`, { size: 10, color: MUTED, font: '宋体', align: 'center', ls: 1 }));
+      return { E, body: { x, y: 1.8, w, h: SH - 2.6 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.08, ib.y - 0.08, ib.w + 0.16, ib.h + 0.16, null, { line: INK, lw: 0.75 })],
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
