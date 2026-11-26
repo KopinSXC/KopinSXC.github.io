@@ -5638,6 +5638,177 @@ function composeSlide(s, deck) {
     imageFrame: (th, ib) => [R(ib.x - 0.08, ib.y - 0.08, ib.w + 0.16, ib.h + 0.16, null, { line: INK, lw: 0.75 })],
   };
 }
+// 2026-11-24：扑克牌——浅灰桌面上摆着白色扑克牌：圆角、细边、左上和右下角印着点数和花色；黑桃、红心、方块、梅花全用图形拼出来。封面是一张背面朝上的红格纹牌、一张红心 A、一张黑桃 A 错开叠放；章节是一张大牌，点数就是章节号；内容页左上角一张小牌当页码；结尾四张 A 排开
+{
+  const BG = 'ECEAE5'; const CARD = 'FFFFFF'; const EDGE = 'CFCAC0'; const RED = 'C0392B'; const BLACK = '1E1E1E'; const MUTED = '86817A'; const LINE = 'DCD8D0';
+  const SUITS = ['spade', 'heart', 'diamond', 'club'];
+  const colorOf = (k) => (k === 'heart' || k === 'diamond' ? RED : BLACK);
+  // 一个花色，画在 (x, y) 起的 s × s 方框里
+  const suit = (k, x, y, s) => {
+    const c = colorOf(k);
+    const stem = [TRI(x + 0.3 * s, y + 0.62 * s, 0.21 * s, 0.38 * s, c, { flipH: true }), TRI(x + 0.49 * s, y + 0.62 * s, 0.21 * s, 0.38 * s, c)];
+    if (k === 'diamond') return [DIA(x + 0.14 * s, y, 0.72 * s, s, c)];
+    if (k === 'heart') return [O(x, y + 0.04 * s, 0.54 * s, 0.54 * s, c), O(x + 0.46 * s, y + 0.04 * s, 0.54 * s, 0.54 * s, c), TRI(x + 0.01 * s, y + 0.34 * s, 0.5 * s, 0.66 * s, c, { flipH: true, flipV: true }), TRI(x + 0.49 * s, y + 0.34 * s, 0.5 * s, 0.66 * s, c, { flipV: true })];
+    if (k === 'spade') return [TRI(x + 0.01 * s, y, 0.5 * s, 0.6 * s, c, { flipH: true }), TRI(x + 0.49 * s, y, 0.5 * s, 0.6 * s, c), O(x, y + 0.3 * s, 0.52 * s, 0.48 * s, c), O(x + 0.48 * s, y + 0.3 * s, 0.52 * s, 0.48 * s, c), ...stem];
+    return [O(x + 0.28 * s, y, 0.44 * s, 0.44 * s, c), O(x + 0.02 * s, y + 0.3 * s, 0.44 * s, 0.44 * s, c), O(x + 0.54 * s, y + 0.3 * s, 0.44 * s, 0.44 * s, c), O(x + 0.34 * s, y + 0.24 * s, 0.32 * s, 0.32 * s, c), ...stem];
+  };
+  const rankText = (n) => ({ 1: 'A', 11: 'J', 12: 'Q', 13: 'K' }[n] || String(n));
+  // 一张正面朝上的牌：四角点数 + 中间一个大花色（或者中间放字）
+  const card = (x, y, w, h, rank, k, o = {}) => {
+    const c = colorOf(k); const fs = Math.max(10, w * 13); const ss = w * 0.13;
+    const E = [R(x + 0.05, y + 0.07, w, h, 'D6D2CA', { r: 0.12 }), R(x, y, w, h, CARD, { line: EDGE, lw: 0.75, r: 0.12 })];
+    E.push(TX(x + 0.08, y + 0.08, w * 0.3, fs / 72 * 1.1, rank, { size: fs, bold: true, color: c, font: 'Times New Roman', align: 'center', ls: 1 }), ...suit(k, x + 0.08 + (w * 0.3 - ss) / 2, y + 0.12 + fs / 72 * 1.1, ss));
+    E.push(TX(x + w - 0.08 - w * 0.3, y + h - 0.12 - fs / 72 * 1.1 - ss - 0.06, w * 0.3, fs / 72 * 1.1, rank, { size: fs, bold: true, color: c, font: 'Times New Roman', align: 'center', ls: 1 }), ...suit(k, x + w - 0.08 - (w * 0.3 + ss) / 2, y + h - 0.12 - ss, ss));
+    if (o.center !== false) { const bs = w * (o.big || 0.42); E.push(...suit(k, x + (w - bs) / 2, y + (h - bs) / 2, bs)); }
+    return E;
+  };
+  // 背面朝上的牌：红色细框 + 整齐的小菱形格纹
+  const back = (x, y, w, h) => {
+    const E = [R(x + 0.05, y + 0.07, w, h, 'D6D2CA', { r: 0.12 }), R(x, y, w, h, CARD, { line: EDGE, lw: 0.75, r: 0.12 }), R(x + 0.14, y + 0.14, w - 0.28, h - 0.28, null, { line: RED, lw: 1, r: 0.06 })];
+    const st = 0.22; for (let yy = y + 0.3; yy < y + h - 0.32; yy += st) for (let xx = x + 0.3 + (Math.round((yy - y) / st) % 2) * st / 2; xx < x + w - 0.36; xx += st) E.push(DIA(xx, yy, 0.09, 0.12, 'E3A69F'));
+    return E;
+  };
+  THEMES.d20261124 = {
+    name: '扑克牌', daily: '2026-11-24',
+    main: RED, soft: 'F6F0EE', accent: RED, bg: CARD, text: BLACK, muted: MUTED, line: LINE, head: '黑体', body: '微软雅黑', marker: 'dot', card: 'rule',
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, BG)];
+      E.push(...back(7.4, 1.95, 2.75, 3.85), ...card(8.55, 1.45, 2.75, 3.85, 'A', 'heart'), ...card(9.7, 0.95, 2.75, 3.85, 'A', 'spade'));
+      E.push(TX(0.95, 1.45, 6.1, 2.9, title, { size: fitPt(title, 6.1, 2.9, 46, 22, 1.15), bold: true, color: BLACK, font: th.head, valign: 'bottom', ls: 1.15 }));
+      E.push(...suit('spade', 0.95, 4.6, 0.22), ...suit('heart', 1.3, 4.6, 0.22), ...suit('diamond', 1.65, 4.6, 0.22), ...suit('club', 2.0, 4.6, 0.22));
+      if (s.sub) E.push(TX(0.95, 5.0, 6.1, 0.7, s.sub, { size: fitPt(s.sub, 6.1, 0.7, 18, 11, 1.2), color: MUTED, font: th.body }));
+      if (s.foot) E.push(TX(0.95, 6.2, 6.1, 0.4, s.foot, { size: 13, color: BLACK, font: th.body, ls: 1 }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const k = SUITS[(no - 1) % 4]; const E = [R(0, 0, SW, SH, BG)];
+      E.push(...card(1.2, 1.0, 3.9, 5.5, rankText(no), k, { big: 0.48 }));
+      const x = 6.1; const w = SW - x - 0.9;
+      E.push(TX(x, 1.9, w, 0.4, `第 ${no} 章`, { size: 15, bold: true, color: colorOf(k), font: th.body, cs: 3, ls: 1 }));
+      E.push(TX(x, 2.4, w, 2.0, t, { size: fitPt(t, w, 2.0, 42, 20, 1.15), bold: true, color: BLACK, font: th.head, valign: 'top', ls: 1.15 }));
+      E.push(HL(x, 4.6, w, BLACK, 0.75));
+      if (s.sub) E.push(TX(x, 4.8, w, 0.8, s.sub, { size: fitPt(s.sub, w, 0.8, 18, 11, 1.2), color: MUTED, font: th.body }));
+      return E;
+    },
+    end(th, s) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, BG)];
+      ['club', 'diamond', 'heart', 'spade'].forEach((k, i) => E.push(...card(5.9 + i * 1.5, 1.7 - i * 0.12, 2.5, 3.5, 'A', k, { big: 0.36, center: i === 3 })));
+      E.push(TX(0.95, 1.9, 5.0, 1.8, t, { size: fitPt(t, 5.0, 1.8, 56, 24, 1.1), bold: true, color: BLACK, font: th.head, valign: 'bottom', ls: 1.1 }));
+      E.push(...suit('spade', 0.95, 3.95, 0.22), ...suit('heart', 1.3, 3.95, 0.22), ...suit('diamond', 1.65, 3.95, 0.22), ...suit('club', 2.0, 3.95, 0.22));
+      if (s.sub) E.push(TX(0.95, 4.4, 5.0, 0.8, s.sub, { size: fitPt(s.sub, 5.0, 0.8, 18, 11, 1.2), color: MUTED, font: th.body }));
+      return E;
+    },
+    frame(th, s, deck, pg) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, CARD)];
+      const k = SUITS[(pg - 1) % 4];
+      E.push(R(0.7, 0.4, 0.86, 1.12, 'D6D2CA', { r: 0.08 }), R(0.65, 0.35, 0.86, 1.12, CARD, { line: EDGE, lw: 0.75, r: 0.08 }));
+      E.push(TX(0.65, 0.42, 0.86, 0.55, String(pg), { size: 24, bold: true, color: colorOf(k), font: 'Times New Roman', align: 'center', valign: 'middle', ls: 1 }), ...suit(k, 0.65 + 0.28, 1.0, 0.3));
+      E.push(TX(1.8, 0.45, SW - 2.6, 0.9, t, { size: fitPt(t, SW - 2.6, 0.9, 28, 16, 1.1), bold: true, color: BLACK, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(HL(1.8, 1.45, SW - 2.6, BLACK, 0.75));
+      E.push(HL(0.7, SH - 0.62, SW - 1.4, LINE, 0.75), TX(0.7, SH - 0.52, 8, 0.3, deck.title, { size: 10, color: MUTED, font: th.body, ls: 1 }));
+      SUITS.forEach((q, i) => E.push(...suit(q, SW - 1.85 + i * 0.3, SH - 0.5, 0.17)));
+      return { E, body: { x: 0.75, y: 1.85, w: SW - 1.5, h: SH - 2.65 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.1, ib.y - 0.1, ib.w + 0.2, ib.h + 0.2, null, { line: EDGE, lw: 1, r: 0.1 })],
+    drawMarker: (th, x, y, size, n) => suit(SUITS[(n - 1) % 4], x, y + size * 0.15, size * 0.62),
+  };
+}
+// 2026-11-25：建筑平面图——白图纸上的双线图框，右下角是标题栏（工程名称、图号、比例、日期）；封面右边画一套细线平面图：粗墙、门洞和门的开启弧线、尺寸标注、房间名和指北针；章节页是建筑图上的索引符号（圆圈中间一道横线，上面是编号）；内容页顶上一排轴号圆圈，标题下面是一道尺寸线；结尾标题栏里盖「审定」红框
+{
+  const PAPER = 'FBFBF9'; const INK = '1F2328'; const THIN = '8E959C'; const WALL = '2A2E33'; const RED = 'C8402F'; const MUTED = '6F767D'; const LINE = 'D5D8DB';
+  const frameLines = () => [R(0.22, 0.22, SW - 0.44, SH - 0.44, null, { line: INK, lw: 0.5 }), R(0.4, 0.4, SW - 0.8, SH - 0.8, null, { line: INK, lw: 1.75 })];
+  // 门：一条门扇线 + 用短线拼成的四分之一开启弧
+  const door = (hx, hy, r, a0) => { const E = []; const pts = []; for (let i = 0; i <= 8; i++) { const a = a0 + (Math.PI / 2) * (i / 8); pts.push([hx + r * Math.cos(a), hy + r * Math.sin(a)]); } for (let i = 1; i < pts.length; i++) E.push(LN(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1], THIN, 0.6)); E.push(LN(hx, hy, pts[8][0], pts[8][1], INK, 1)); return E; };
+  // 水平尺寸线：两端 45° 短斜线、两条引出线、中间写数字
+  const dimH = (x, y, w, t, o = {}) => [HL(x, y, w, THIN, 0.6), LN(x - 0.06, y + 0.06, x + 0.06, y - 0.06, INK, 1), LN(x + w - 0.06, y + 0.06, x + w + 0.06, y - 0.06, INK, 1), VL(x, y - 0.15, 0.3, THIN, 0.5), VL(x + w, y - 0.15, 0.3, THIN, 0.5), TX(x, y - 0.3, w, 0.26, t, { size: o.size || 9, color: MUTED, font: 'Arial', align: 'center', ls: 1 })];
+  const dimV = (x, y, h, t) => [VL(x, y, h, THIN, 0.6), LN(x - 0.06, y + 0.06, x + 0.06, y - 0.06, INK, 1), LN(x - 0.06, y + h + 0.06, x + 0.06, y + h - 0.06, INK, 1), HL(x - 0.15, y, 0.3, THIN, 0.5), HL(x - 0.15, y + h, 0.3, THIN, 0.5), TX(x - 0.62, y + h / 2 - 0.13, 0.5, 0.26, t, { size: 9, color: MUTED, font: 'Arial', align: 'right', ls: 1 })];
+  // 索引符号：圆圈 + 中间横线，上面编号、下面图号
+  const callout = (cx, cy, d, top, bottom, ts = 40) => [O(cx - d / 2, cy - d / 2, d, d, PAPER, { line: INK, lw: 1.5 }), HL(cx - d / 2, cy, d, INK, 1), TX(cx - d / 2, cy - d / 2 + d * 0.06, d, d * 0.42, top, { size: ts, bold: true, color: INK, font: 'Arial', align: 'center', valign: 'middle', ls: 1 }), TX(cx - d / 2, cy + d * 0.05, d, d * 0.3, bottom, { size: ts * 0.32, color: MUTED, font: '微软雅黑', align: 'center', valign: 'middle', ls: 1 })];
+  // 标题栏：一格一格的小表
+  const titleBlock = (x, y, w, rows) => {
+    const rh = 0.32; const E = [R(x, y, w, rh * rows.length, PAPER, { line: INK, lw: 1.25 })];
+    rows.forEach((cells, i) => {
+      const yy = y + i * rh; if (i) E.push(HL(x, yy, w, INK, 0.5));
+      let xx = x; cells.forEach(([k, v, cw, o = {}], j) => {
+        const ww = cw * w; if (j) E.push(VL(xx, yy, rh, INK, 0.5));
+        E.push(TX(xx + 0.06, yy, 0.62, rh, k, { size: 8, color: MUTED, font: '微软雅黑', valign: 'middle', ls: 1 }), TX(xx + 0.7, yy, ww - 0.78, rh, v, { size: fitPt(v, ww - 0.78, rh, o.size || 10, 7, 1), bold: !!o.bold, color: o.color || INK, font: '微软雅黑', valign: 'middle', ls: 1 }));
+        xx += ww;
+      });
+    });
+    return E;
+  };
+  const today = () => { const d = new Date(); return `${d.getFullYear()}.${pad2(d.getMonth() + 1)}.${pad2(d.getDate())}`; };
+  // 封面上的一小套平面图
+  const plan = (x, y) => {
+    const t = 0.09; const W = 4.6; const H = 3.4; const E = [];
+    const wall = (a, b, w, h) => E.push(R(x + a, y + b, w, h, WALL));
+    wall(0, 0, W, t); wall(0, H - t, 1.2, t); wall(2.0, H - t, W - 2.0, t); wall(0, 0, t, H); wall(W - t, 0, t, 1.4); wall(W - t, 2.1, t, H - 2.1);
+    wall(2.6, 0, t, 1.2); wall(2.6, 1.9, t, H - 1.9); wall(2.6, 1.9, W - 2.6, t);
+    E.push(...door(x + 1.2, y + H - t / 2, 0.75, -Math.PI / 2), ...door(x + 2.6 + t / 2, y + 1.2, 0.65, 0), ...door(x + W - t / 2, y + 1.4, 0.65, Math.PI / 2));
+    // 窗：墙上两道细线
+    [[0.6, 1.4], [3.1, 4.1]].forEach(([a, b]) => E.push(R(x + a, y - 0.005, b - a, t + 0.01, PAPER), HL(x + a, y + 0.02, b - a, INK, 0.6), HL(x + a, y + t - 0.02, b - a, INK, 0.6)));
+    E.push(TX(x, y + 1.2, 2.6, 0.3, '活动室', { size: 11, color: INK, font: '微软雅黑', align: 'center', ls: 1 }), TX(x, y + 1.5, 2.6, 0.25, '48 ㎡', { size: 8, color: MUTED, font: 'Arial', align: 'center', ls: 1 }));
+    E.push(TX(x + 2.6, y + 0.7, W - 2.6, 0.3, '会议室', { size: 11, color: INK, font: '微软雅黑', align: 'center', ls: 1 }), TX(x + 2.6, y + 2.5, W - 2.6, 0.3, '储藏', { size: 11, color: INK, font: '微软雅黑', align: 'center', ls: 1 }));
+    E.push(...dimH(x, y - 0.45, 2.6, '6000'), ...dimH(x + 2.6, y - 0.45, W - 2.6, '4500'), ...dimV(x - 0.45, y, H, '7800'));
+    return E;
+  };
+  const north = (cx, cy) => [O(cx - 0.28, cy - 0.28, 0.56, 0.56, null, { line: INK, lw: 0.75 }), TRI(cx - 0.12, cy - 0.27, 0.12, 0.5, INK, { flipH: true }), TRI(cx, cy - 0.27, 0.12, 0.5, INK), TX(cx - 0.2, cy - 0.62, 0.4, 0.28, '北', { size: 10, bold: true, color: INK, font: '微软雅黑', align: 'center', ls: 1 })];
+  THEMES.d20261125 = {
+    name: '建筑平面图', daily: '2026-11-25',
+    main: '6E7F8F', soft: 'F1F2F3', accent: RED, bg: PAPER, text: INK, muted: MUTED, line: LINE, head: '黑体', body: '微软雅黑', marker: 'square', card: 'rule',
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, PAPER), ...frameLines()];
+      E.push(...plan(7.25, 1.55), ...north(12.45, 1.75));
+      E.push(TX(0.95, 1.2, 5.2, 0.3, '建筑设计　平面图', { size: 11, color: MUTED, font: th.body, cs: 3, ls: 1 }));
+      E.push(TX(0.95, 1.65, 5.2, 2.6, title, { size: fitPt(title, 5.2, 2.6, 44, 22, 1.15), bold: true, color: INK, font: th.head, valign: 'top', ls: 1.15 }));
+      E.push(...dimH(0.95, 4.55, 5.2, '', { size: 1 }));
+      if (s.sub) E.push(TX(0.95, 4.75, 5.2, 0.7, s.sub, { size: fitPt(s.sub, 5.2, 0.7, 18, 11, 1.2), color: MUTED, font: th.body }));
+      E.push(...titleBlock(SW - 6.1, SH - 1.36, 5.7, [[['工程名称', title, 1, { bold: true }]], [['设计', s.foot || '—', 0.5], ['日期', today(), 0.5]], [['比例', '1 : 100', 0.5], ['图号', '建施-01', 0.5]]]));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, PAPER), ...frameLines()];
+      E.push(...callout(3.0, 3.6, 3.2, pad2(no), `建施-${pad2(no)}`, 72));
+      E.push(HL(4.6, 3.6, 1.0, INK, 1));
+      const x = 6.0; const w = SW - x - 1.0;
+      E.push(TX(x, 1.9, w, 0.35, `第 ${no} 张图`, { size: 13, bold: true, color: RED, font: th.body, cs: 3, ls: 1 }));
+      E.push(TX(x, 2.35, w, 1.9, t, { size: fitPt(t, w, 1.9, 40, 20, 1.15), bold: true, color: INK, font: th.head, valign: 'top', ls: 1.15 }));
+      E.push(...dimH(x, 4.55, w, ''));
+      if (s.sub) E.push(TX(x, 4.75, w, 0.8, s.sub, { size: fitPt(s.sub, w, 0.8, 18, 11, 1.2), color: MUTED, font: th.body }));
+      return E;
+    },
+    end(th, s, deck) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, PAPER), ...frameLines()];
+      E.push(...callout(2.6, 3.2, 2.6, '完', '全套图纸', 64));
+      E.push(TX(4.6, 1.9, SW - 5.6, 1.8, t, { size: fitPt(t, SW - 5.6, 1.8, 56, 24, 1.1), bold: true, color: INK, font: th.head, valign: 'bottom', ls: 1.1 }));
+      E.push(...dimH(4.6, 4.05, SW - 5.6, ''));
+      if (s.sub) E.push(TX(4.6, 4.25, SW - 5.6, 0.7, s.sub, { size: fitPt(s.sub, SW - 5.6, 0.7, 18, 11, 1.2), color: MUTED, font: th.body }));
+      E.push(...titleBlock(SW - 6.1, SH - 1.36, 5.7, [[['工程名称', deck.title || '', 1, { bold: true }]], [['状态', '审定通过', 0.5, { color: RED, bold: true }], ['日期', today(), 0.5]], [['比例', '1 : 100', 0.5], ['图号', '建施-终', 0.5]]]));
+      E.push(R(SW - 3.2, SH - 2.35, 1.9, 0.7, null, { line: RED, lw: 2 }), TX(SW - 3.2, SH - 2.35, 1.9, 0.7, '审　定', { size: 22, bold: true, color: RED, font: th.head, align: 'center', valign: 'middle', ls: 1 }));
+      return E;
+    },
+    frame(th, s, deck, pg) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, PAPER), ...frameLines()];
+      // 顶上一排轴号：小圆圈 + 编号，当前页的那一个加粗
+      const n = Math.min(10, Math.max(4, (deck.slides || []).length)); const ax = 0.9; const aw = SW - 1.8;
+      for (let i = 0; i < n; i++) { const cx = ax + (aw * i) / (n - 1); const cur = (pg - 1) % n === i; E.push(VL(cx, 0.4, 0.12, THIN, 0.5), O(cx - 0.13, 0.52, 0.26, 0.26, PAPER, { line: cur ? RED : THIN, lw: cur ? 1.25 : 0.6 }), TX(cx - 0.13, 0.52, 0.26, 0.26, String(i + 1), { size: 8, bold: cur, color: cur ? RED : MUTED, font: 'Arial', align: 'center', valign: 'middle', ls: 1 })); }
+      E.push(TX(0.9, 0.95, SW - 1.8, 0.75, t, { size: fitPt(t, SW - 1.8, 0.75, 28, 16, 1.1), bold: true, color: INK, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(HL(0.9, 1.78, SW - 1.8, INK, 1));
+      E.push(...titleBlock(SW - 4.6, SH - 0.72, 4.2, [[['图号', `建施-${pad2(pg)}`, 0.5], ['比例', '1 : 100', 0.5]]]));
+      E.push(TX(0.9, SH - 0.68, 7, 0.26, deck.title, { size: 9, color: MUTED, font: th.body, valign: 'middle', ls: 1 }));
+      return { E, body: { x: 0.9, y: 2.05, w: SW - 1.8, h: SH - 2.95 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.08, ib.y - 0.08, ib.w + 0.16, ib.h + 0.16, null, { line: INK, lw: 0.75 })],
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
