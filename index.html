@@ -5948,6 +5948,74 @@ function composeSlide(s, deck) {
     imageFrame: (th, ib) => [R(ib.x - 0.25, ib.y + 0.3, 0.6, 0.14, TAPE, { line: 'DCD4BF', lw: 0.5 }), R(ib.x + ib.w - 0.35, ib.y + ib.h - 0.45, 0.6, 0.14, TAPE, { line: 'DCD4BF', lw: 0.5 })],
   };
 }
+// 2026-11-27：图书馆借书卡——封面是贴在书后的牛皮纸书袋，借书卡从袋里抽出一半：卡上印着书名、索书号和一格格借还日期，盖着紫色日期章；章节页是一整张借书卡，书名栏写章节名，叫「第 1 册」；内容页像卡片的页眉，底下一排日期格子随页数一格格盖上章；结尾所有格子盖满，大章「已归还」
+{
+  const BG = 'E7E6E2'; const CARD = 'FBF7EC'; const POCKET = 'D9C9A3'; const BLUE = '5A7BA6'; const INK = '2A2A2A'; const STAMP = '5B4B9C'; const MUTED = '7E7A70'; const LINE = 'CFC8B6';
+  const md = (k) => { const d = new Date(Date.now() + k * 86400000 * 7); return `${d.getMonth() + 1}月${d.getDate()}日`; };
+  // 紫色日期章：细框 + 日期，略微错位，像手盖的
+  const dateStamp = (x, y, w, t, k = 0) => [R(x + (k % 3) * 0.03, y + (k % 2) * 0.03, w, 0.3, null, { line: STAMP, lw: 0.75 }), TX(x + (k % 3) * 0.03, y + (k % 2) * 0.03, w, 0.3, t, { size: 10, bold: true, color: STAMP, font: 'Arial', align: 'center', valign: 'middle', ls: 1 })];
+  const bigStamp = (x, y, w, h, t, size) => [R(x, y, w, h, null, { line: STAMP, lw: 2.25, r: 0.08 }), R(x + 0.07, y + 0.07, w - 0.14, h - 0.14, null, { line: STAMP, lw: 0.6, r: 0.05 }), TX(x, y, w, h, t, { size, bold: true, color: STAMP, font: '黑体', align: 'center', valign: 'middle', cs: 4, ls: 1 })];
+  // 一张借书卡：卡头、书名栏、借还表格；stamped 是已经盖章的行数
+  const card = (x, y, w, h, o) => {
+    const E = [R(x + 0.05, y + 0.06, w, h, 'D4D1C8'), R(x, y, w, h, CARD, { line: LINE, lw: 0.75 })];
+    E.push(TX(x, y + 0.18, w, 0.42, o.head || '借　书　卡', { size: o.hs || 16, bold: true, color: INK, font: '宋体', align: 'center', valign: 'middle', cs: 6, ls: 1 }));
+    E.push(TX(x + w - 2.4, y + 0.06, 2.2, 0.2, o.call || '索书号　I247 / 2026', { size: 8, color: MUTED, font: '宋体', align: 'right', ls: 1 }));
+    const fx = x + 0.3; const fw = w - 0.6; let yy = y + 0.75;
+    E.push(HL(fx, yy, fw, BLUE, 1.25), HL(fx, yy + 0.05, fw, BLUE, 0.5));
+    yy += 0.2; const th = o.titleH || 0.6;
+    E.push(TX(fx, yy, 0.8, th, '书　名', { size: 10, color: MUTED, font: '宋体', valign: 'middle', ls: 1 }), TX(fx + 0.85, yy, fw - 0.85, th, o.title, { size: fitPt(o.title, fw - 0.85, th, o.ts || 16, 9, 1.15), bold: true, color: INK, font: '黑体', valign: 'middle', ls: 1.15 }), HL(fx + 0.85, yy + th, fw - 0.85, LINE, 0.6));
+    yy += th + 0.05;
+    if (o.author !== undefined) { E.push(TX(fx, yy, 0.8, 0.4, '著　者', { size: 10, color: MUTED, font: '宋体', valign: 'middle', ls: 1 }), TX(fx + 0.85, yy, fw - 0.85, 0.4, o.author || '—', { size: fitPt(o.author || '—', fw - 0.85, 0.4, 12, 8, 1.1), color: INK, font: '宋体', valign: 'middle', ls: 1.1 }), HL(fx + 0.85, yy + 0.4, fw - 0.85, LINE, 0.6)); yy += 0.5; }
+    // 借还表格
+    const cols = [['借书日期', 0.36], ['借书人', 0.28], ['还书日期', 0.36]]; const rh = o.rh || 0.38; const rows = Math.max(1, Math.floor((y + h - 0.25 - yy - rh) / rh));
+    E.push(HL(fx, yy, fw, BLUE, 0.9)); let cx = fx; cols.forEach(([k, r], i) => { E.push(TX(cx, yy, fw * r, rh, k, { size: 9, color: BLUE, font: '宋体', align: 'center', valign: 'middle', ls: 1 })); if (i) E.push(VL(cx, yy, rh * (rows + 1), BLUE, 0.6)); cx += fw * r; });
+    for (let i = 1; i <= rows + 1; i++) E.push(HL(fx, yy + rh * i, fw, i === 1 ? BLUE : LINE, i === 1 ? 0.9 : 0.5));
+    for (let i = 0; i < Math.min(o.stamped || 0, rows); i++) { const ry = yy + rh * (i + 1) + (rh - 0.3) / 2; E.push(...dateStamp(fx + fw * 0.06, ry, fw * 0.24, md(i), i), TX(fx + fw * 0.36, ry, fw * 0.28, 0.3, o.who || '', { size: 10, color: INK, font: '楷体', align: 'center', valign: 'middle', ls: 1 })); if (o.returned || i < (o.stamped || 0) - 1) E.push(...dateStamp(fx + fw * 0.7, ry, fw * 0.24, md(i + 2), i + 1)); }
+    return E;
+  };
+  THEMES.d20261127 = {
+    name: '图书馆借书卡', daily: '2026-11-27',
+    main: BLUE, soft: 'F3EEE0', accent: STAMP, bg: CARD, text: INK, muted: MUTED, line: LINE, head: '黑体', body: '微软雅黑', marker: 'square', card: 'rule',
+    cover(th, s, deck) {
+      const title = s.title || deck.title || '';
+      const E = [R(0, 0, SW, SH, BG)];
+      // 借书卡在书袋后面，抽出来一大半
+      E.push(...card(7.9, 0.6, 4.3, 5.4, { title, author: s.foot || '', stamped: 2, who: '王' }));
+      E.push(R(7.45, 4.35, 5.2, 2.6, POCKET), HL(7.45, 4.35, 5.2, 'BFAE86', 1.5), TX(7.45, 5.1, 5.2, 0.5, '图　书　馆', { size: 20, bold: true, color: '8A7650', font: '宋体', align: 'center', cs: 8, ls: 1 }), TX(7.45, 5.7, 5.2, 0.35, '请爱护图书　按期归还', { size: 10, color: '8A7650', font: '宋体', align: 'center', cs: 3, ls: 1 }));
+      E.push(TX(0.95, 1.3, 6.0, 2.8, title, { size: fitPt(title, 6.0, 2.8, 46, 22, 1.15), bold: true, color: INK, font: th.head, valign: 'bottom', ls: 1.15 }));
+      E.push(HL(0.95, 4.35, 6.0, BLUE, 1.25), HL(0.95, 4.42, 6.0, BLUE, 0.5));
+      if (s.sub) E.push(TX(0.95, 4.65, 6.0, 0.7, s.sub, { size: fitPt(s.sub, 6.0, 0.7, 18, 11, 1.2), color: MUTED, font: th.body }));
+      if (s.foot) E.push(TX(0.95, 6.2, 6.0, 0.4, s.foot, { size: 13, color: INK, font: th.body, ls: 1 }));
+      return E;
+    },
+    section(th, s, deck, no) {
+      const t = s.title || '';
+      const E = [R(0, 0, SW, SH, BG)];
+      E.push(...card(1.3, 0.8, SW - 2.6, 5.9, { head: `借　书　卡　　第 ${no} 册`, hs: 18, call: `索书号　I247 / ${pad2(no)}`, title: t, titleH: 1.5, ts: 40, author: s.sub || '', rh: 0.42, stamped: 1, who: '' }));
+      return E;
+    },
+    end(th, s, deck) {
+      const t = s.title || '谢谢！';
+      const E = [R(0, 0, SW, SH, BG)];
+      E.push(...card(1.3, 0.8, SW - 2.6, 5.9, { head: '借　书　卡', hs: 18, title: t, titleH: 1.3, ts: 48, author: s.sub || deck.title || '', rh: 0.42, stamped: 3, returned: true, who: '王' }));
+      E.push(...bigStamp(SW - 4.7, 5.35, 2.7, 1.0, '已归还', 32));
+      return E;
+    },
+    frame(th, s, deck, pg) {
+      const t = s.title || '';
+      const n = Math.max(1, (deck.slides || []).length);
+      const E = [R(0, 0, SW, SH, CARD)];
+      E.push(TX(0.75, 0.42, SW - 3.6, 0.95, t, { size: fitPt(t, SW - 3.6, 0.95, 28, 16, 1.1), bold: true, color: INK, font: th.head, valign: 'middle', ls: 1.1 }));
+      E.push(...dateStamp(SW - 2.65, 0.62, 1.9, `第 ${pg} 页　${md(0)}`, pg));
+      E.push(HL(0.75, 1.48, SW - 1.5, BLUE, 1.25), HL(0.75, 1.55, SW - 1.5, BLUE, 0.5));
+      // 底部一排借还格子，翻到哪页就盖到哪格
+      const k = 12; const gw = (SW - 1.5) / k; const gy = SH - 0.62; const done = Math.round((pg / n) * k);
+      for (let i = 0; i < k; i++) { E.push(R(0.75 + i * gw, gy, gw, 0.32, null, { line: LINE, lw: 0.5 })); if (i < done) E.push(R(0.75 + i * gw + 0.08, gy + 0.06, gw - 0.16, 0.2, null, { line: STAMP, lw: 0.6 }), TX(0.75 + i * gw + 0.08, gy + 0.06, gw - 0.16, 0.2, '借', { size: 8, bold: true, color: STAMP, font: '宋体', align: 'center', valign: 'middle', ls: 1 })); }
+      return { E, body: { x: 0.75, y: 1.85, w: SW - 1.5, h: SH - 2.7 } };
+    },
+    imageFrame: (th, ib) => [R(ib.x - 0.08, ib.y - 0.08, ib.w + 0.16, ib.h + 0.16, null, { line: LINE, lw: 1 })],
+  };
+}
 /* ===== 每日新风格结束 ===== */
 
 /* ---- 网页预览：同一组图元画成 HTML ---- */
